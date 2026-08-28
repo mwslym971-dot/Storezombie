@@ -3057,5 +3057,73 @@ console.log('CLOUD-SYNC ✓');
 });
 })();
 </script>
+<script>
+/* 🛠️ NET-FIX: أصدقاء بدون أخطاء + حركة أونلاين ناعمة */
+(function(){'use strict';
+if(!window.Cloud){return;}
+
+/* ══ 1) حماية بيانات الأصدقاء (إصلاح Object.keys(undefined)) ══ */
+if(!window.friendsData)window.friendsData={};
+function normF(d){
+if(!d||typeof d!=='object')return{pending:{},accepted:{}};
+if(!d.pending||typeof d.pending!=='object')d.pending={};
+if(!d.accepted||typeof d.accepted!=='object')d.accepted={};
+return d;}
+window.friendsData=normF(window.friendsData);
+var _of=Cloud.onFriends;
+Cloud.onFriends=function(cb){
+return _of.call(Cloud,function(d){window.friendsData=normF(d);cb(window.friendsData);});};
+
+/* ══ 2) طلب صداقة آمن: تحقق + رسالة واضحة بدل الانهيار ══ */
+var _sr=Cloud.sendFriendRequest;
+Cloud.sendFriendRequest=function(to,n){
+if(!to){if(window.toast)toast('اختر لاعباً أولاً','red');return Promise.resolve();}
+if(to===Cloud._uid){if(window.toast)toast('هذا أنت!','red');return Promise.resolve();}
+var p=_sr.call(Cloud,to,n);
+if(p&&p.then)p.then(function(){if(window.toast)toast('📨 أُرسل طلب الصداقة','cop');},
+function(){if(window.toast)toast('تعذر الإرسال — تحقق من الاتصال','red');});
+return p;};
+var _af=Cloud.acceptFriend;
+Cloud.acceptFriend=function(o,on,my){window.friendsData=normF(window.friendsData);return _af.call(Cloud,o,on,my);};
+
+/* ══ 3) إرسال موقعك أسرع (كل 0.5 ثانية بدل 2) ══ */
+var _gp=Cloud.goOnline;
+Cloud.goOnline=function(st){
+_gp.call(Cloud,st);
+try{
+if(Cloud._posInt)clearInterval(Cloud._posInt);
+Cloud._posInt=setInterval(function(){
+if(window.P&&Cloud._uid)Cloud.updatePosition(Math.round(P.x),Math.round(P.y));
+},500);
+}catch(e){}};
+
+/* ══ 4) تنعيم حركة اللاعبين الآخرين (Interpolation) ══ */
+var smooth={};
+var _u0=window.update;
+window.update=function(dt){
+if(_u0)_u0(dt);
+if(!window.E||!E.otherPlayers)return;
+var now=Date.now(),i;
+for(i=0;i<E.otherPlayers.length;i++){
+var p=E.otherPlayers[i];
+if(p.uid===Cloud._uid)continue;
+var s=smooth[p.uid];
+if(!s){smooth[p.uid]={x:p.x||0,y:p.y||0};continue;}
+/* إذا قفز اللاعب مسافة بعيدة (انتقال) → لحقه فوراً */
+var dx=(p.x||s.x)-s.x,dy=(p.y||s.y)-s.y;
+if(Math.abs(dx)>300||Math.abs(dy)>300){s.x=p.x;s.y=p.y;continue;}
+/* انزلاق ناعم نحو الموقع الحقيقي */
+var k=Math.min(1,dt*4);
+s.x+=dx*k;s.y+=dy*k;
+p.x=s.x;p.y=s.y;}
+/* تنظيف اللاعبين القدامى من ذاكرة التنعيم */
+for(var key in smooth){
+var found=false;
+for(i=0;i<E.otherPlayers.length;i++)if(E.otherPlayers[i].uid===key){found=true;break;}
+if(!found)delete smooth[key];}};
+
+console.log('NET-FIX ✓');
+})();
+</script>
 </body>
 </html>
