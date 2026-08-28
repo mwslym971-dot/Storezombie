@@ -2927,5 +2927,135 @@ setInterval(function(){
 if(window.P && P.dead < 0) P.dead = 0;
 }, 50);
 </script>
+   <script>
+/* 🛠️ ONLINE-FIX: يظهر المتصلون فعلياً فقط */
+(function(){'use strict';
+if(!window.Cloud||!Cloud.onPlayersOnline)return;
+var ME=null;
+function fresh(p){
+if(!p)return false;
+if(ME&&p.uid===ME)return true;
+if(!p.name)return false;
+return (Date.now()-(p.lastSeen||0))<60000;
+}
+/* 1) فلترة القائمة قبل وصولها للعبة */
+var _opo=Cloud.onPlayersOnline;
+Cloud.onPlayersOnline=function(cb){
+ME=Cloud._uid||ME;
+return _opo.call(Cloud,function(all){
+var f=[],i;
+for(i=0;i<all.length;i++){if(fresh(all[i]))f.push(all[i]);}
+cb(f);
+});};
+/* 2) تنظيف قاعدة البيانات مرة واحدة بعد الدخول (يحذف الأشباح للجميع) */
+var _su=Cloud.setUid;
+Cloud.setUid=function(u){
+_su.call(Cloud,u);
+if(u&&window.DB){ME=u;
+try{DB.ref('players_online').once('value',function(s){
+s.forEach(function(c){var v=c.val();
+if(v&&v.uid!==u&&(!v.name||(Date.now()-(v.lastSeen||0))>300000)){
+try{c.ref().remove();}catch(e){}}});
+});}catch(e){}}};
+/* 3) فلترة احتياطية مستمرة كل ثانيتين */
+setInterval(function(){
+if(!window.E||!E.otherPlayers||!E.otherPlayers.length)return;
+var f=[],i;
+for(i=0;i<E.otherPlayers.length;i++){if(fresh(E.otherPlayers[i]))f.push(E.otherPlayers[i]);}
+E.otherPlayers=f;
+},2000);
+console.log('ONLINE-FIX ✓');
+})();
+</script>
+<script>
+/* ═══ CLOUD-SYNC: حفظ سحابي تلقائي + دخول فوري ═══ */
+(function(){'use strict';
+function csReady(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+csReady(function(){
+if(!window.Cloud){return;}
+
+/* 1) تثبيت بقاء الجلسة (تسجيل دخول دائم) */
+try{
+if(window.AUTH&&window.firebase&&firebase.auth){
+var pers=(firebase.auth.Auth&&firebase.auth.Auth.Persistence)?firebase.auth.Auth.Persistence.LOCAL:'local';
+AUTH.setPersistence(pers).catch(function(){});
+}}catch(e){}
+
+/* 2) احتياطي محلي لكل حساب + دفع للسحابة */
+var _saveState=Cloud.saveState;
+Cloud.saveState=function(s){
+try{if(Cloud._uid)LS.set('matari_bak_'+Cloud._uid,JSON.stringify(s));}catch(e){}
+return _saveState.call(Cloud,s);
+};
+
+/* 3) عند الدخول: يُختار الأحدث (سحابي أو احتياطي) فلا يضيع تقدم أبداً */
+var _loadState=Cloud.loadState;
+Cloud.loadState=function(){
+return _loadState.call(Cloud).then(function(st){
+try{
+var bak=null;
+if(Cloud._uid)bak=JSON.parse(LS.get('matari_bak_'+Cloud._uid)||'null');
+if(bak&&(!st||(bak.lastSeen||0)>(st.lastSeen||0))){
+setTimeout(function(){_saveState.call(Cloud,bak);},1500);
+return bak;
+}
+}catch(e){}
+return st;
+});
+};
+
+/* 4) حفظ تلقائي كل 8 ثوانٍ + عند الخروج وإخفاء التبويب */
+setInterval(function(){if(window.ST&&window.save)save();},8000);
+window.addEventListener('pagehide',function(){if(window.ST)save();});
+document.addEventListener('visibilitychange',function(){if(document.hidden&&window.ST)save();});
+
+/* 5) تذكر البريد → تسجيل الدخول بنقرة واحدة */
+var _login=Cloud.login;
+Cloud.login=function(e,p){try{LS.set('matari_lastEmail',e);}catch(err){}return _login.call(Cloud,e,p);};
+var _reg=Cloud.register;
+Cloud.register=function(e,p,n){try{LS.set('matari_lastEmail',e);}catch(err){}return _reg.call(Cloud,e,p,n);};
+function prefill(){
+var st=document.getElementById('start');
+if(st&&st.style.display==='none')return;
+var el=document.getElementById('loginEmail');
+var em=LS.get('matari_lastEmail');
+if(el&&em&&!el.value)el.value=em;
+}
+setInterval(prefill,1000);prefill();
+
+/* 6) إشعار الاتصال + حفظ فوري بعد الدخول */
+var _goOnline=Cloud.goOnline;
+Cloud.goOnline=function(st){
+_goOnline.call(Cloud,st);
+setTimeout(function(){if(window.save)save();},2000);
+setTimeout(function(){if(window.toast)toast('☁️ حسابك متصل — تقدمك يُحفظ تلقائياً','cop');},2500);
+};
+
+/* 7) زر مزامنة يدوية سريع */
+var qb=document.getElementById('quickBtns');
+if(qb&&!document.getElementById('cloudBtn')){
+var cb=document.createElement('button');
+cb.id='cloudBtn';cb.className='qbtn';
+cb.innerHTML='<span style="font-size:20px">☁️</span>';
+cb.title='مزامنة الآن';
+cb.onclick=function(){
+if(window.initAudio)initAudio();
+if(window.ST&&window.save){save();toast('☁️ تم الحفظ سحابياً ✓','gold');}
+else toast('سجّل الدخول أولاً','red');
+};
+qb.appendChild(cb);
+}
+
+/* 8) دخول تلقائي مرئي: إذا وُجدت جلسة محفوظة */
+setTimeout(function(){
+try{
+if(window.AUTH&&AUTH.currentUser&&window.toast)toast('🔄 دخول تلقائي لحسابك...','cop');
+}catch(e){}
+},700);
+
+console.log('CLOUD-SYNC ✓');
+});
+})();
+</script>
 </body>
 </html>
