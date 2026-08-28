@@ -3142,5 +3142,24 @@ console.log('NET-FIX V2 ✓');
 });
 })();
 </script>
+<script>
+/* ═══ FRIENDS-FIX: حماية لوحة الأصدقاء من البيانات الناقصة ═══ */
+(function(){'use strict';
+function norm(d){
+d=d||{};
+if(!d.pending||typeof d.pending!=='object')d.pending={};
+if(!d.accepted||typeof d.accepted!=='object')d.accepted={};
+return d;}
+/* تطبيع البيانات قبل وصولها للعبة */
+if(window.Cloud&&Cloud.onFriends){
+var _of=Cloud.onFriends;
+Cloud.onFriends=function(cb){return _of.call(Cloud,function(d){cb(norm(d));});};}
+/* حماية إضافية عند فتح اللوحة */
+if(window.pFriends){
+var _pf=window.pFriends;
+window.pFriends=function(){window.friendsData=norm(window.friendsData);return _pf();};}
+console.log('FRIENDS-FIX ✓');
+})();
+</script>
 </body>
 </html>
