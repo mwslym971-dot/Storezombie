@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0a1424">
-<title>متجري في خطر — V4.0</title>
+<title>متجري في خطر — V1.0</title>
 <style>
 :root{--gold:#ffcf5c}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
@@ -2045,6 +2045,887 @@ window.addEventListener('beforeunload',save);
 requestAnimationFrame(loop);
 }catch(err){window.__fatal('boot: '+err.message);}}
 boot();
+</script>
+<script>
+/* ═══════════════════════════════════════════════════════════
+   MEGA EVOLUTION V8 — التحديث الشامل + ذكاء الزومبي المحسّن
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+function initMega() {
+    if(window.MEGA_INIT) return;
+    window.MEGA_INIT = true;
+
+    var M = window.MEGA = {
+        peds: [], cars: [], birds: [],
+        caravanT: 0, surv: null, celeb: null, treas: null,
+        stormT: 0, evT: 40, carT: 10, birdT: 5,
+        secrets: {treasure:0, detective:0, stories:0},
+        heroes: {nour:0, kareem:0},
+        quest: null, detType: null
+    };
+
+    // ══════════════════════════════════════════════════════
+    // [1] ذكاء الزومبي المحسّن (يهاجم كل شيء + رسبن قريب)
+    // ══════════════════════════════════════════════════════
+    var _o_spawnZombie = window.spawnZombie;
+    window.spawnZombie = function(t) {
+        // 25% من الزومبي يرسبنون من الجنوب (قريب من المتجر)
+        var side = irnd(0, 3);
+        var x, y;
+        if(side === 0) { x = rnd(4*T, (WW-4)*T); y = 1.2*T; }
+        else if(side === 1) { x = 1.2*T; y = rnd(4*T, (WH-16)*T); }
+        else if(side === 2) { x = (WW-1.2)*T; y = rnd(4*T, (WH-16)*T); }
+        else { x = 31.5*T + rnd(-8*T, 8*T); y = (WH-2)*T; } // قريب!
+        
+        var Z = ZTYPES[t];
+        var hm = 1 + (ST.wave-1)*.12, dm = 1 + (ST.wave-1)*.06;
+        E.zombies.push({
+            x:x, y:y, t:t,
+            hp: Z.hp*hm, max: Z.hp*hm,
+            dmg: Z.dmg*dm, spd: Z.spd*rnd(.85, 1.15),
+            sc: Z.sc, atkCd: 0, flash: 0,
+            ph: rnd(0, 6), spawn: .4,
+            color: Z.color, slowT: 0, stealCd: 0,
+            pref: null, seed: Math.random()*9
+        });
+    };
+
+    window.updZombies = function(dt) {
+        var gx = SHOP_DOOR.x, gy = SHOP_DOOR.y;
+        var farmCx = FARM.x + 7*T, farmCy = FARM.y + 11*T;
+        
+        for(var i = E.zombies.length - 1; i >= 0; i--) {            var z = E.zombies[i];
+            if(!z) continue;
+            z.atkCd -= dt;
+            z.stealCd = (z.stealCd || 0) - dt;
+            if(z.flash > 0) z.flash -= dt;
+            if(z.spawn < 1) z.spawn = Math.min(1, z.spawn + dt*3);
+            
+            var ZT = ZTYPES[z.t];
+            if(ZT && ZT.fire && Math.random() < .15)
+                E.parts.push({kind:'glow', x:z.x+rnd(-8,8), y:z.y-rnd(10,30), vx:0, vy:-30, c:'#ff7a2e', t:.5});
+            
+            // اختيار هدف بذكاء
+            var targets = [];
+            
+            // اللاعب (أعلى أولوية إذا قريب)
+            if(!P.dead && dist(z.x, z.y, P.x, P.y) < 260) {
+                var dp = dist(z.x, z.y, P.x, P.y);
+                targets.push({x:P.x, y:P.y, kind:'p', d:dp*0.8});
+            }
+            
+            // الحيوانات
+            for(var ai = 0; ai < E.animals.length; ai++) {
+                var a = E.animals[ai];
+                var ad = dist(z.x, z.y, a.x, a.y);
+                if(ad < 200) targets.push({x:a.x, y:a.y, kind:'a', d:ad, idx:ai});
+            }
+            
+            // الدفاعات
+            for(var di = 0; di < E.defs.length; di++) {
+                var dd0 = E.defs[di];
+                if(dd0.hp <= 0) continue;
+                var dd = dist(z.x, z.y, dd0.x, dd0.y);
+                if(dd < 250) targets.push({x:dd0.x, y:dd0.y, kind:'d', d:dd, idx:di});
+            }
+            
+            // مباني اللاعب (جديد!)
+            for(var bi = 0; bi < E.buildings.length; bi++) {
+                var bl = E.buildings[bi];
+                if(bl.hp !== undefined && bl.hp <= 0) continue;
+                var bd = dist(z.x, z.y, bl.x, bl.y);
+                if(bd < 350) targets.push({x:bl.x, y:bl.y, kind:'b', d:bd, idx:bi});
+            }
+            
+            // المزرعة (جديد!)
+            var df = dist(z.x, z.y, farmCx, farmCy);
+            if(df < 400) targets.push({x:farmCx, y:farmCy, kind:'f', d:df*0.6});
+            
+            // المتجر (هدف افتراضي دائم)
+            var dsd = dist(z.x, z.y, gx, gy);
+            targets.push({x:gx, y:gy, kind:'s', d:dsd*0.9});            
+            targets.sort(function(a, b) { return a.d - b.d; });
+            var tgt = targets[0];
+            
+            // تأثيرات دفاعية
+            for(var bi2 = 0; bi2 < E.defs.length; bi2++) {
+                var bd2 = E.defs[bi2];
+                if(bd2.t === 'barr' && bd2.hp > 0 && dist(z.x, z.y, bd2.x, bd2.y) < 42) z.slowT = .3;
+                if(bd2.t === 'trap' && bd2.hp > 0 && bd2.uses > 0 && dist(z.x, z.y, bd2.x, bd2.y) < 22) {
+                    z.hp -= 25; bd2.uses--; z.flash = .15;
+                    if(bd2.uses <= 0) bd2.hp = 0;
+                }
+            }
+            
+            // مركز أمني يبطئ
+            if(ST.buildings) {
+                for(var si = 0; si < ST.buildings.length; si++) {
+                    var sb = ST.buildings[si];
+                    if(sb.id === 'security' && dist(z.x, z.y, sb.x, sb.y) < 150) z.slowT = .3;
+                }
+            }
+            
+            if(z.slowT > 0) z.slowT -= dt;
+            
+            var arrived = false;
+            
+            // هجوم على الدفاعات
+            if(tgt.kind === 'd' && tgt.d < 30) {
+                if(z.atkCd <= 0) {
+                    z.atkCd = 1;
+                    var def = E.defs[tgt.idx];
+                    if(def) {
+                        def.hp -= z.dmg;
+                        sfx('hit');
+                        sparkle(def.x, def.y - 8, '#c8a060', 3);
+                        if(def.hp <= 0) destroyDef(def);
+                    }
+                }
+                arrived = true;
+            }
+            // هجوم على اللاعب
+            else if(tgt.kind === 'p' && tgt.d < 26) {
+                if(z.atkCd <= 0) { z.atkCd = 1; hurtPlayer(z.dmg); }
+                arrived = true;
+            }
+            // هجوم على الحيوانات
+            else if(tgt.kind === 'a' && tgt.d < 26) {
+                if(z.atkCd <= 0) {
+                    z.atkCd = 1;
+                    var animal = E.animals[tgt.idx];                    if(animal) {
+                        animal.hp -= z.dmg;
+                        animal.flash = .3;
+                        sfx('hit');
+                        if(animal.hp <= 0) killAnimal(tgt.idx);
+                    }
+                }
+                arrived = true;
+            }
+            // هجوم على مباني اللاعب (جديد!)
+            else if(tgt.kind === 'b' && tgt.d < 34) {
+                var bl2 = E.buildings[tgt.idx];
+                if(bl2) {
+                    if(bl2.hp === undefined) {
+                        var bdef = BUILDINGS.filter(function(b) { return b.id === bl2.id; })[0];
+                        bl2.max = bdef ? bdef.hp : 300;
+                        bl2.hp = bl2.max;
+                    }
+                    if(z.atkCd <= 0) {
+                        z.atkCd = 1;
+                        bl2.hp -= z.dmg;
+                        sfx('hit');
+                        sparkle(bl2.x, bl2.y - 10, '#ff8f8f', 4);
+                        if(bl2.hp <= 0) {
+                            toast(I('skull') + ' دمّر الزومبي مبنى!', 'red');
+                            var idx = ST.buildings.indexOf(bl2);
+                            if(idx >= 0) ST.buildings.splice(idx, 1);
+                            E.buildings.splice(tgt.idx, 1);
+                            shake = Math.max(shake, 4);
+                            drawBG();
+                        }
+                    }
+                }
+                arrived = true;
+            }
+            // هجوم على المزرعة - دوس المحاصيل (جديد!)
+            else if(tgt.kind === 'f' && tgt.d < 46) {
+                if(z.atkCd <= 0) {
+                    z.atkCd = 1;
+                    var cand = [];
+                    for(var pi = 0; pi < unlockedPlots(); pi++) {
+                        var pl = ST.plots[pi];
+                        if(pl && pl.g > 2) cand.push(pi);
+                    }
+                    if(cand.length) {
+                        var ci = pick(cand);
+                        var pl2 = ST.plots[ci];
+                        pl2.g = Math.max(0, pl2.g - 15);
+                        sfx('hit');
+                        var pp = plotPos(ci);                        sparkle(pp.x, pp.y, '#8a5a3a', 4);
+                        if(pl2.g <= 0) {
+                            ST.plots[ci] = null;
+                            toast(I('skull') + ' الزومبي داس المحاصيل!', 'red');
+                        }
+                    }
+                }
+                arrived = true;
+            }
+            // هجوم على المتجر
+            else if(tgt.kind === 's' && tgt.d < 34) {
+                if(z.atkCd <= 0) {
+                    z.atkCd = 1;
+                    ST.shopHp -= z.dmg;
+                    shake = Math.max(shake, 1.5);
+                    if(z.stealCd <= 0 && totalStock() > 0) {
+                        var ks = Object.keys(ST.stock).map(Number);
+                        if(ks.length) {
+                            var k = pick(ks);
+                            ST.stock[k]--;
+                            if(ST.stock[k] <= 0) delete ST.stock[k];
+                            toast(I('skull') + ' زومبي سرق 1× ' + PRODUCTS[k].name, 'red');
+                            fText(SHOP.x + SHOP.w/2, SHOP.y + SHOP.h/2, '-1 ' + PRODUCTS[k].name, '#ff5c5c');
+                        }
+                    }
+                    z.stealCd = 5;
+                    if(ST.shopHp <= 0) raidShop();
+                }
+                arrived = true;
+            }
+            
+            // الحركة نحو الهدف
+            if(!arrived) {
+                var a = Math.atan2(tgt.y - z.y, tgt.x - z.x);
+                var sp = z.spd * (z.slowT > 0 ? .45 : 1);
+                var nx = z.x + Math.cos(a) * sp * dt;
+                var ny = z.y + Math.sin(a) * sp * dt;
+                if(isFinite(nx) && isFinite(ny)) { z.x = nx; z.y = ny; }
+                z.fa = a;
+                z.ph += dt * (z.t === 'f' ? 14 : 8);
+            }
+            
+            if(z.hp <= 0) killZombie(i);
+        }
+    };
+
+    // ══════════════════════════════════════════════════════
+    // [2] إصلاح دوال المباني والبطل (حماية من NaN)
+    // ══════════════════════════════════════════════════════
+    var _o_updHero = window.updHero;    window.updHero = function(dt) {
+        var H = E.hero;
+        if(!H) return;
+        H.cd -= dt; H.sk -= dt;
+        var tgt = null, td = 1e9;
+        for(var i = 0; i < E.zombies.length; i++) {
+            var z = E.zombies[i];
+            var d = dist(H.x, H.y, z.x, z.y);
+            if(d < td) { td = d; tgt = z; }
+        }
+        if(tgt && td < 220) {
+            var a = Math.atan2(tgt.y - H.y, tgt.x - H.x);
+            H.fa = a;
+            if(td > 30) {
+                H.x += Math.cos(a) * 130 * dt;
+                H.y += Math.sin(a) * 130 * dt;
+                H.ph += dt * 11;
+            } else if(H.cd <= 0) {
+                H.cd = .8; H.atk = .25;
+                tgt.hp -= H.dmg; tgt.flash = .15; sfx('hit');
+                if(tgt.hp <= 0) {
+                    var hIdx = E.zombies.indexOf(tgt);
+                    if(hIdx >= 0) killZombie(hIdx);
+                }
+            }
+            if(H.sk <= 0 && E.zombies.length >= 3) {
+                H.sk = 20; shake = 4;
+                for(var j = 0; j < E.zombies.length; j++)
+                    if(dist(H.x, H.y, E.zombies[j].x, E.zombies[j].y) < 110)
+                        E.zombies[j].hp -= H.dmg * 2;
+                toast(I('bolt') + ' دوامة البطل!', 'gold');
+            }
+        } else {
+            var tx = P.x + 30, ty = P.y + 10;
+            var d2 = dist(H.x, H.y, tx, ty);
+            if(d2 > 40) {
+                var a2 = Math.atan2(ty - H.y, tx - H.x);
+                H.fa = a2;
+                H.x += Math.cos(a2) * 150 * dt;
+                H.y += Math.sin(a2) * 150 * dt;
+                H.ph += dt * 11;
+            }
+        }
+        if(H.atk > 0) H.atk -= dt;
+    };
+
+    // ══════════════════════════════════════════════════════
+    // [3] نظام البناء الفعلي (سقالات + عمال + شريط تقدم)
+    // ══════════════════════════════════════════════════════
+    var _o_placeBuilding = window.placeBuilding;    window.placeBuilding = function(bid, x, y) {
+        var oldLen = ST.buildings ? ST.buildings.length : 0;
+        if(_o_placeBuilding) _o_placeBuilding(bid, x, y);
+        if(ST.buildings && ST.buildings.length > oldLen) {
+            var b = ST.buildings[ST.buildings.length - 1];
+            b.mega_buildT = 0;
+            b.mega_buildMax = 20;
+        }
+    };
+
+    // ══════════════════════════════════════════════════════
+    // [4] المحقق السينمائي (3 أنواع + أشرطة + مهام)
+    // ══════════════════════════════════════════════════════
+    var DET_TYPES = [
+        {nm:'المحقق رعد', th:'الجرائم', q:{kind:'kill', n:8}, rw:{money:500, gems:5}},
+        {nm:'المحققة نور', th:'الزومبي', q:{kind:'kill', n:15}, rw:{money:800, gems:10}},
+        {nm:'المحقق سالم', th:'الموارد', q:{kind:'collect', n:200}, rw:{gems:15}}
+    ];
+    var lbT = null, lbB = null;
+    function letterbox(on) {
+        if(!lbT) {
+            lbT = document.createElement('div');
+            lbB = document.createElement('div');
+            var s = 'position:fixed;left:0;right:0;height:0;background:#000;z-index:9999;transition:height .6s;pointer-events:none;';
+            lbT.style.cssText = s + 'top:0;';
+            lbB.style.cssText = s + 'bottom:0;';
+            document.body.appendChild(lbT);
+            document.body.appendChild(lbB);
+        }
+        lbT.style.height = on ? '10%' : '0';
+        lbB.style.height = on ? '10%' : '0';
+    }
+
+    var _o_spawnDet = window.spawnDetective;
+    window.spawnDetective = function() {
+        M.detType = pick(DET_TYPES);
+        letterbox(true);
+        setTimeout(function() { letterbox(false); }, 4000);
+        toast('🚔 ' + M.detType.nm + ' (' + M.detType.th + ') قادم!', 'big');
+        if(_o_spawnDet) _o_spawnDet();
+    };
+
+    var _o_eval = window.evaluateShop;
+    window.evaluateShop = function() {
+        var res = _o_eval ? _o_eval() : {good:true};
+        if(M.detType && !M.quest) {
+            M.quest = {
+                kind: M.detType.q.kind, n: M.detType.q.n, prog: 0,
+                base: ST.money, rw: M.detType.rw, who: M.detType.nm
+            };            toast('📜 مهمة ' + M.detType.nm + ' بدأت!', 'cop');
+        }
+        return res;
+    };
+
+    // ══════════════════════════════════════════════════════
+    // [5] قصص الزبائن
+    // ══════════════════════════════════════════════════════
+    var STORIES = [
+        {t:'فقدت منزلي... شكراً لك.', rw:function() { ST.rep = (ST.rep || 0) + 3; }},
+        {t:'أبحث عن عائلتي...', rw:function() { gainXP(20); }},
+        {t:'سمعت عن متجرك!', rw:function() { ST.money += 100; }},
+        {t:'لدي سر: كنز مدفون...', rw:function() { spawnTreasure(); }}
+    ];
+    var _o_spawnCust = window.spawnCustomer;
+    window.spawnCustomer = function() {
+        if(_o_spawnCust) _o_spawnCust();
+        var c = E.customers[E.customers.length - 1];
+        if(c && Math.random() < 0.2) c.mega_story = pick(STORIES);
+    };
+
+    // ══════════════════════════════════════════════════════
+    // [6] الأحداث الكنز
+    // ══════════════════════════════════════════════════════
+    function spawnTreasure() {
+        M.treas = {x: rnd(24*T, 42*T), y: rnd(24*T, 31*T), t: 60};
+        toast('🗺️ كنز مخفي! ابحث عن ✖ الذهبية', 'big');
+    }
+    window.spawnTreasure = spawnTreasure;
+
+    function megaEvent() {
+        var r = Math.random();
+        if(r < 0.15) { 
+            if(!E.merchant) {
+                E.merchant = {x:27*T, y:33*T, t:80, offers:mkOffers()};
+                M.caravanT = 80;
+                toast('🐪 قافلة تجارية وصلت!', 'big');
+            }
+        } else if(r < 0.3) { spawnTreasure(); } 
+        else if(r < 0.45) { 
+            M.surv = {t: 30};
+            toast('🙏 ناجون عند البوابة! (+سمعة)', 'cop');
+            setTimeout(function() {
+                if(M.surv) { ST.rep = (ST.rep || 0) + 5; ST.gems += 2; toast('👨 انضم الناجون!', 'gold'); M.surv = null; }
+            }, 5000);
+        } else if(r < 0.6) { 
+            M.stormT = 45; ST.weather = 'عاصفة'; toast('⛈️ عاصفة! الإنتاج -50%', 'red'); 
+        } else if(r < 0.75) { 
+            M.celeb = {x: 31.5*T, y: (WH-2)*T, st:'in', t:0}; toast('⭐ شخصية مشهورة تزور المتجر!', 'big'); 
+        } else if(r < 0.9) {             var k = pick(['wood','stone','metal','herb']);
+            var am = Math.min(ST.res[k], irnd(10, 30));
+            ST.res[k] -= am; toast('🦹 سرقة! فُقد ' + am + ' مورد', 'red');
+        }
+    }
+
+    // ══════════════════════════════════════════════════════
+    // [7] الحلقة الإضافية (عالم حي + بناء)
+    // ══════════════════════════════════════════════════════
+    function mega_update(dt) {
+        if(!ST) return;
+        // تقدم البناء
+        if(ST.buildings) {
+            for(var i = 0; i < ST.buildings.length; i++) {
+                var b = ST.buildings[i];
+                if(b.mega_buildT !== undefined && b.mega_buildT < b.mega_buildMax) {
+                    b.mega_buildT += dt * (M.heroes.nour ? 1.5 : 1);
+                    if(b.mega_buildT >= b.mega_buildMax) {
+                        b.mega_buildT = b.mega_buildMax;
+                        sparkle(b.x, b.y, '#ffd95c', 20); sfx('chest');
+                        var bd = BUILDINGS.filter(function(x) { return x.id === b.id; })[0];
+                        toast('🎉 اكتمل بناء ' + (bd ? bd.n : 'المبنى') + '!', 'big');
+                    }
+                }
+            }
+        }
+        // مشاة
+        while(M.peds.length < 4) M.peds.push({x: rnd(22*T, 42*T), y: rnd(12*T, 30*T), tx:0, ty:0, ph: rnd(0, 9), sp: rnd(20, 40), shirt: pick(['#c0392b', '#2980b9', '#8e44ad', '#16a085'])});
+        for(var i = 0; i < M.peds.length; i++) {
+            var p = M.peds[i];
+            if(dist(p.x, p.y, p.tx, p.ty) < 10 || !p.tx) { var s = pick(DSLOTS); p.tx = s.x; p.ty = s.y; }
+            var a = Math.atan2(p.ty - p.y, p.tx - p.x);
+            p.x += Math.cos(a) * p.sp * dt; p.y += Math.sin(a) * p.sp * dt; p.ph += dt * 8;
+        }
+        // سيارات
+        M.carT -= dt;
+        if(M.carT <= 0) { M.carT = rnd(12, 22); M.cars.push({x: 32.6*T, y: (WH+1)*T, sp: rnd(90, 140), c: pick(['#e74c3c', '#3498db', '#f39c12'])}); }
+        for(var i = M.cars.length - 1; i >= 0; i--) { M.cars[i].y -= M.cars[i].sp * dt; if(M.cars[i].y < 33*T) M.cars.splice(i, 1); }
+        // طيور
+        M.birdT -= dt;
+        if(M.birdT <= 0) { M.birdT = rnd(8, 16); M.birds.push({x: -40, y: rnd(60, 200), vx: rnd(60, 110), t: 0}); }
+        for(var i = M.birds.length - 1; i >= 0; i--) { M.birds[i].t += dt; M.birds[i].x += M.birds[i].vx * dt; if(M.birds[i].x > VW + 60) M.birds.splice(i, 1); }
+        // أحداث
+        M.evT -= dt; if(M.evT <= 0) { M.evT = rnd(60, 110); megaEvent(); }
+        // كنز
+        if(M.treas) {
+            M.treas.t -= dt;
+            if(M.treas.t <= 0) M.treas = null;
+            else if(dist(P.x, P.y, M.treas.x, M.treas.y) < 40) {
+                var rw = irnd(200, 800); ST.money += rw;                toast('💰 كنز! +' + rw, 'big'); sparkle(P.x, P.y, '#ffd95c', 30); sfx('chest');
+                M.treas = null; M.secrets.treasure++;
+            }
+        }
+        // مشهور
+        if(M.celeb) {
+            var cb = M.celeb;
+            if(cb.st === 'in') { cb.y -= 40 * dt; if(cb.y < SHOP_DOOR.y + 40) { cb.st = 'stay'; cb.t = 5; } } 
+            else if(cb.st === 'stay') { cb.t -= dt; if(cb.t <= 0) { cb.st = 'out'; ST.money += 500; ST.rep = (ST.rep || 0) + 10; toast('⭐ انتهت الزيارة! +500🪙', 'big'); } } 
+            else { cb.y += 80 * dt; if(cb.y > WH*T) M.celeb = null; }
+        }
+        // عاصفة
+        if(M.stormT > 0) { M.stormT -= dt; if(M.stormT <= 0) rollWeather(); }
+        // مهام
+        if(M.quest) {
+            if(M.quest.kind === 'collect') M.quest.prog = ST.money - M.quest.base;
+            if(M.quest.prog >= M.quest.n) {
+                if(M.quest.rw.money) ST.money += M.quest.rw.money;
+                if(M.quest.rw.gems) ST.gems += M.quest.rw.gems;
+                toast('🎖️ أنجزت مهمة ' + M.quest.who + '!', 'big'); sfx('win'); M.quest = null;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════
+    // [8] الرسم الإضافي
+    // ══════════════════════════════════════════════════════
+    function mega_render() {
+        if(!ST || !ctx) return;
+        // سقالات البناء
+        if(ST.buildings) {
+            for(var i = 0; i < ST.buildings.length; i++) {
+                var b = ST.buildings[i];
+                if(b.mega_buildT !== undefined && b.mega_buildT < b.mega_buildMax) {
+                    var x = b.x - cam.x, y = b.y - cam.y;
+                    var p = b.mega_buildT / b.mega_buildMax;
+                    ctx.globalAlpha = 0.6; ctx.fillStyle = '#8a5c34';
+                    rrect(ctx, x - 24, y - 16, 48, 32, 4); ctx.fill(); ctx.globalAlpha = 1;
+                    ctx.fillStyle = 'rgba(0,0,0,.6)'; rrect(ctx, x - 24, y - 34, 48, 6, 3); ctx.fill();
+                    ctx.fillStyle = '#f39c12'; rrect(ctx, x - 24, y - 34, 48 * p, 6, 3); ctx.fill();
+                    drawBiped(ctx, x - 10, y + 10, {sc:0.8, fx:1, ph:perf/120, mv:true, kind:'p', skin:'#d9a066', shirt:'#e67e22', pants:'#4a4a5e', hat:'cap', capColor:'#f1c40f'});
+                    drawBiped(ctx, x + 10, y + 10, {sc:0.8, fx:-1, ph:perf/120 + 2, mv:true, kind:'p', skin:'#d9a066', shirt:'#e67e22', pants:'#4a4a5e', hat:'cap', capColor:'#f1c40f'});
+                }
+            }
+        }
+        // مشاة
+        for(var i = 0; i < M.peds.length; i++) {
+            var p = M.peds[i], px = p.x - cam.x, py = p.y - cam.y;
+            if(px > -50 && px < VW + 50) drawBiped(ctx, px, py, {sc:0.95, fx:Math.cos(Math.atan2(p.ty - p.y, p.tx - p.x)) >= 0 ? 1 : -1, ph:p.ph, mv:true, kind:'p', skin:'#f0c8a0', shirt:p.shirt, pants:'#4a4a5e'});
+        }        // سيارات
+        for(var i = 0; i < M.cars.length; i++) {
+            var c = M.cars[i], cx = c.x - cam.x, cy = c.y - cam.y;
+            ctx.fillStyle = c.c; rrect(ctx, cx - 11, cy - 20, 22, 34, 6); ctx.fill();
+            ctx.fillStyle = '#2c3e50'; rrect(ctx, cx - 8, cy - 12, 16, 10, 3); ctx.fill();
+        }
+        // طيور
+        ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 2;
+        for(var i = 0; i < M.birds.length; i++) {
+            var b = M.birds[i], bx = b.x - cam.x, by = b.y - cam.y + Math.sin(b.t * 3) * 6, fl = Math.sin(b.t * 10) * 4;
+            ctx.beginPath(); ctx.moveTo(bx - 6, by); ctx.quadraticCurveTo(bx - 3, by - fl, bx, by); ctx.quadraticCurveTo(bx + 3, by - fl, bx + 6, by); ctx.stroke();
+        }
+        // كنز
+        if(M.treas) { var tx = M.treas.x - cam.x, ty = M.treas.y - cam.y; ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 24px Tahoma'; ctx.textAlign = 'center'; ctx.fillText('✖', tx, ty); }
+        // مشهور
+        if(M.celeb) drawBiped(ctx, M.celeb.x - cam.x, M.celeb.y - cam.y, {sc:1.1, fx:1, ph:perf/150, mv:true, kind:'p', skin:'#f0c8a0', shirt:'#f1c40f', pants:'#2a2a2a', crown:true, nameLabel:'⭐ مشهور', nameColor:'#ffd95c'});
+    }
+
+    // ══════════════════════════════════════════════════════
+    // [9] دمج الحلقات بأمان
+    // ══════════════════════════════════════════════════════
+    var _o_update = window.update;
+    window.update = function(dt) { if(_o_update) _o_update(dt); mega_update(dt); };
+    var _o_render = window.render;
+    window.render = function() { if(_o_render) _o_render(); mega_render(); };
+
+    // ══════════════════════════════════════════════════════
+    // [10] واجهة المدينة والأبطال
+    // ══════════════════════════════════════════════════════
+    var cityBtn = document.createElement('button');
+    cityBtn.className = 'qbtn';
+    cityBtn.innerHTML = '<span style="font-size:20px">🏙️</span>';
+    cityBtn.style.background = 'radial-gradient(circle at 32% 28%,#ffd95c,#ff9d2e 55%,#b06a12)';
+    cityBtn.onclick = function() {
+        initAudio();
+        openP('المدينة', function() {
+            var h = '<div class="row"><span>🏙️ السمعة: <b>' + (ST.rep || 0) + '</b></span></div>';
+            h += '<div class="row"><button class="btn g" id="mDecF">🍞 توزيع طعام (+8 سمعة)</button></div>';
+            h += '<div class="row"><button class="btn" id="mDecT">💰 ضريبة (+50🪙 -5 سمعة)</button></div>';
+            h += '<div class="row"><div style="flex:1"><div class="tt">👷‍♀️ نور: بناء أسرع</div></div>' + (M.heroes.nour ? '<span>✓</span>' : '<button class="btn" id="mHeroN">2500🪙</button>') + '</div>';
+            h += '<div class="row"><div style="flex:1"><div class="tt">💼 كريم: أسعار +15%</div></div>' + (M.heroes.kareem ? '<span>✓</span>' : '<button class="btn" id="mHeroK">4000🪙</button>') + '</div>';
+            return h;
+        }, 'people');
+        setTimeout(function() {
+            var df = document.getElementById('mDecF'), dt2 = document.getElementById('mDecT'), hn = document.getElementById('mHeroN'), hk = document.getElementById('mHeroK');
+            if(df) df.onclick = function() { ST.rep = (ST.rep || 0) + 8; toast('🍞 +8 سمعة', 'gold'); refreshP(); };
+            if(dt2) dt2.onclick = function() { ST.money += 50; ST.rep = Math.max(0, (ST.rep || 0) - 5); toast('💰 +50🪙 -5 سمعة'); refreshP(); };
+            if(hn) hn.onclick = function() { if(ST.money >= 2500) { ST.money -= 2500; M.heroes.nour = 1; toast('👷‍♀️ انضمت نور!', 'big'); refreshP(); } else toast('مال غير كافٍ', 'red'); };
+            if(hk) hk.onclick = function() { if(ST.money >= 4000) { ST.money -= 4000; M.heroes.kareem = 1; toast('💼 انضم كريم!', 'big'); refreshP(); } else toast('مال غير كافٍ', 'red'); };
+        }, 100);    };
+    var qb = document.getElementById('quickBtns');
+    if(qb) qb.appendChild(cityBtn);
+
+    // ══════════════════════════════════════════════════════
+    // [11] لفافات اقتصادية
+    // ══════════════════════════════════════════════════════
+    var _o_salePrice = window.salePrice;
+    window.salePrice = function(p) { var v = _o_salePrice ? _o_salePrice(p) : p.base; if(M.heroes.kareem) v = Math.round(v * 1.15); return v; };
+    var _o_killZombie = window.killZombie;
+    window.killZombie = function(i) { if(M.quest && M.quest.kind === 'kill') M.quest.prog++; if(_o_killZombie) _o_killZombie(i); };
+
+    // ══════════════════════════════════════════════════════
+    // [12] حفظ وتحميل
+    // ══════════════════════════════════════════════════════
+    setInterval(function() { if(ST) { try { localStorage.setItem('mega_v8', JSON.stringify({heroes: M.heroes, secrets: M.secrets})); } catch(e){} } }, 8000);
+    try { var j = JSON.parse(localStorage.getItem('mega_v8') || 'null'); if(j) { M.heroes = j.heroes || M.heroes; M.secrets = j.secrets || M.secrets; } } catch(e){}
+
+    console.log('%c⚡ MEGA EVOLUTION V8 ✓ (ذكاء زومبي محسّن)', 'color:#ffd95c;font-weight:bold');
+    setTimeout(function() { toast('⚡ MEGA V8: ذكاء زومبي + بناء حقيقي + محقق + عالم حي!', 'big'); }, 1500);
+}
+
+var megaWait = setInterval(function() {
+    if(window.ST || document.getElementById('cv')) { clearInterval(megaWait); setTimeout(initMega, 1000); }
+}, 500);
+})();
+</script>
+<script>
+/* ═══════════════════════════════════════════════════════════
+   WORLD EXPANSION UPDATE — توسعة العالم (بلوك مستقل)
+   ═══════════════════════════════════════════════════════════ */
+(function(){'use strict';
+function initWX(){
+if(window.WXP_INIT)return;
+window.WXP_INIT=true;
+var WX=window.WXP={fires:[],resN:[],cityN:[],projs:[],spray:0,inCave:false,inCity:false,zone:'',quest:null,heroEv:null,eagle:null,caveLeft:0,secrets:{},bossKills:0,cd:{},heroT:150,eagleT:120,fxT:0};
+try{var j=JSON.parse(localStorage.getItem('wxp_v1')||'null');if(j){WX.secrets=j.secrets||{};WX.bossKills=j.bossKills||0;}}catch(e){}
+function saveWX(){try{localStorage.setItem('wxp_v1',JSON.stringify({secrets:WX.secrets,bossKills:WX.bossKills}));}catch(e){}}
+setInterval(saveWX,10000);
+var _sv=window.save;
+window.save=function(){_sv();saveWX();};
+
+/* ══ [1] وحوش جديدة (إضافة آمنة لأنواع الزومبي) ══ */
+ZTYPES.st={n:'حجري',hp:400,dmg:20,spd:10,sc:1.8,color:'#86919c'};
+ZTYPES.gz={n:'عملاق',hp:600,dmg:26,spd:12,sc:2.4,color:'#4a5a2a'};
+ZTYPES.px={n:'سام',hp:90,dmg:14,spd:30,sc:1.1,color:'#8f4ac0'};
+ZTYPES.fx={n:'خاطف',hp:30,dmg:8,spd:70,sc:.9,color:'#a8d468'};
+
+/* ══ [2] دفاعات جديدة في لوحة الدفاع ══ */
+DEFS.mgun={n:'برج رشاش',ic:'gun',hp:140,cost:{metal:20,wood:10},d:'نيران سريعة'};
+DEFS.rocket={n:'برج صواريخ',ic:'bomb',hp:120,cost:{metal:35,stone:10},d:'انفجارات'};
+DEFS.city={n:'مركز الدفاع',ic:'shield',hp:300,cost:{metal:40,stone:30,wood:20},d:'قصف مدفعي'};
+
+/* ══ [3] إصلاح خطأ updNodes المخفي (المتغير y) ══ */
+window.updNodes=function(dt){for(var i=0;i<E.nodes.length;i++){var n=E.nodes[i];if(n.hitT>0)n.hitT-=dt;
+if(n.hp<=0){n.respawn-=dt;if(n.respawn<=0){n.hp=3;if(n.type==='tree')solids.push({x:n.x-14,y:n.y-8,w:28,h:20,nref:n});}}}};
+
+/* ══ [4] مناطق العالم الجديد ══ */
+var ZONES={city:{x:15*T,y:55*T,r:9*T,nm:'🏙️ مدينة الفجر'},cave:{x:95*T,y:60*T,r:8*T,nm:'🕳️ مغارة الزومبي'},forest:{x:78*T,y:10*T,r:8*T,nm:'🌲 غابة الناجين'},mine:{x:55*T,y:70*T,r:8*T,nm:'⛰️ مناجم الواحة'},boss:{x:60*T,y:3*T,r:6*T,nm:'🏚️ بيت زعيم الزومبي'}};
+function stallPos(i){return{x:15*T+(i-1)*3*T,y:53*T};}
+/* عقد موارد نادرة */
+(function(){var i;for(i=0;i<6;i++)WX.resN.push({x:78*T+rnd(-6*T,6*T),y:10*T+rnd(-4*T,4*T),t:'rtree',hp:3,rt:0});
+for(i=0;i<5;i++)WX.resN.push({x:55*T+rnd(-6*T,6*T),y:70*T+rnd(-4*T,4*T),t:'rrock',hp:3,rt:0});
+for(i=0;i<3;i++)WX.resN.push({x:55*T+rnd(-5*T,5*T),y:70*T+rnd(-3*T,3*T),t:'rgold',hp:3,rt:0});
+for(i=0;i<2;i++)WX.resN.push({x:95*T+rnd(-4*T,4*T),y:60*T+rnd(-3*T,3*T),t:'rgold',hp:3,rt:0});})();
+
+/* ══ [5] رسومات الخلفية للمناطق الجديدة ══ */
+var _dbg=window.drawBG;
+window.drawBG=function(){_dbg();if(!bgC)return;var g=bgC.getContext('2d');
+/* بيت الزعيم: مبنى أزرق مرعب شمالاً */
+var bx=60*T,by=2.5*T;
+g.fillStyle='rgba(20,20,50,.6)';ellipse(g,bx,by+30,140,40);g.fill();
+g.fillStyle=vgrad(g,0,by-60,0,90,'#2a3a8a','#141a4a');rrect(g,bx-70,by-50,140,90,8);g.fill();
+g.fillStyle='#0a0a2a';g.beginPath();g.moveTo(bx-80,by-46);g.lineTo(bx,by-95);g.lineTo(bx+80,by-46);g.closePath();g.fill();
+g.fillStyle='#ff3b3b';ellipse(g,bx-25,by-15,7,9);g.fill();ellipse(g,bx+25,by-15,7,9);g.fill();
+g.fillStyle='#0a0a2a';rrect(g,bx-16,by+5,32,38,4);g.fill();
+g.strokeStyle='#4a5ae0';g.lineWidth=3;g.beginPath();g.moveTo(bx-70,by-50);g.lineTo(bx-70,by+40);g.moveTo(bx+70,by-50);g.lineTo(bx+70,by+40);g.stroke();g.fillStyle='#ffd95c';g.font='bold 14px Tahoma';g.textAlign='center';g.fillText('⚔️ بيت زعيم الزومبي',bx,by-100);
+/* فم المغارة */
+var cx=95*T,cy=60*T;
+g.fillStyle='#1a1a1a';g.beginPath();g.moveTo(cx-70,cy+40);g.quadraticCurveTo(cx-60,cy-50,cx,cy-55);g.quadraticCurveTo(cx+60,cy-50,cx+70,cy+40);g.closePath();g.fill();
+g.fillStyle='#000';ellipse(g,cx,cy+10,42,30);g.fill();
+g.strokeStyle='#3a3a3a';g.lineWidth=4;g.beginPath();g.moveTo(cx-50,cy-20);g.lineTo(cx-35,cy+5);g.moveTo(cx+50,cy-20);g.lineTo(cx+35,cy+5);g.stroke();
+g.fillStyle='#8fffb0';g.font='bold 14px Tahoma';g.fillText('🕳️ مغارة الزومبي',cx,cy-70);
+/* غابة كثيفة */
+var fx=78*T,fy=10*T;
+for(var i=0;i<14;i++){var tx=fx+rnd(-7*T,7*T),ty=fy+rnd(-4*T,4*T);g.fillStyle='#2e5a20';ellipse(g,tx,ty-20,26,22);g.fill();g.fillStyle='#4a8a30';ellipse(g,tx-6,ty-26,14,12);g.fill();g.fillStyle='#6b4426';rrect(g,tx-4,ty-6,8,20,3);g.fill();}
+g.fillStyle='#8fffb0';g.font='bold 13px Tahoma';g.fillText('🌲 غابة الناجين',fx,fy-6*T);
+/* مناجم */
+var mx=55*T,my=70*T;
+for(var k=0;k<8;k++){var rx=mx+rnd(-6*T,6*T),ry=my+rnd(-3*T,3*T);g.fillStyle='#59616b';g.beginPath();g.moveTo(rx-20,ry+12);g.lineTo(rx-8,ry-14);g.lineTo(rx+10,ry-8);g.lineTo(rx+20,ry+12);g.closePath();g.fill();g.fillStyle='#ffd95c';ellipse(g,rx,ry-2,3,3);g.fill();}
+g.fillStyle='#ffd95c';g.font='bold 13px Tahoma';g.fillText('⛰️ مناجم الواحة',mx,my-5*T);
+/* شوارع المدينة */
+var cxx=15*T,cyy=55*T;
+g.fillStyle='#9aa0a8';rrect(g,cxx-8*T,cyy-2*T,16*T,4*T,8);g.fill();
+g.strokeStyle='#ffd95c';g.lineWidth=2;g.setLineDash([12,10]);g.beginPath();g.moveTo(cxx-8*T,cyy);g.lineTo(cxx+8*T,cyy);g.stroke();g.setLineDash([]);
+for(var s=0;s<3;s++){var sp=stallPos(s);g.fillStyle='#8a5c34';rrect(g,sp.x-26,sp.y-14,52,28,4);g.fill();g.fillStyle=s%2?'#ffd95c':'#d05a4e';g.beginPath();g.moveTo(sp.x-30,sp.y-14);g.lineTo(sp.x,sp.y-34);g.lineTo(sp.x+30,sp.y-14);g.closePath();g.fill();}
+g.fillStyle='#8fd4ff';g.font='bold 13px Tahoma';g.fillText('🏙️ مدينة الفجر',cxx,cyy-6*T);};
+
+/* ══ [6] أبطال خارقون ══ */
+var HEROES_X=[
+{id:'spider',nm:'سبايدرمان',ava:'🕷️',color:'#d0342c',cape:null,story:'نسجتُ خيوطي عبر الأبعاد لأحذّركم: عاصفة زومبي قادمة!',q:8,rw:{gems:10,money:500}},
+{id:'bat',nm:'باتمان',ava:'🦇',color:'#2a2a2a',cape:'#111111',story:'الظلام يخفي أسراراً... وجدتُ كنوزاً في مغارتكم.',q:12,rw:{gems:15,money:800}},
+{id:'super',nm:'سوبرمان',ava:'🦸',color:'#2f6fd6',cape:'#c0392b',story:'من كوكب بعيد جئتُ لأساعد مدينتكم ضد الزومبي.',q:10,rw:{gems:12,money:600}}];
+var lb1=null,lb2=null;
+function letterbox(on){if(!lb1){lb1=document.createElement('div');lb2=document.createElement('div');
+var s='position:fixed;left:0;right:0;height:0;background:#000;z-index:9998;transition:height .6s;pointer-events:none;';
+lb1.style.cssText=s+'top:0;';lb2.style.cssText=s+'bottom:0;';document.body.appendChild(lb1);document.body.appendChild(lb2);}
+lb1.style.height=on?'10%':'0';lb2.style.height=on?'10%':'0';}
+var heroBub=null;
+function heroBubShow(html){if(!heroBub){heroBub=document.createElement('div');heroBub.className='detectiveBubble';document.body.appendChild(heroBub);}
+heroBub.innerHTML=html;heroBub.style.display='block';heroBub.style.left='50%';heroBub.style.top='80px';heroBub.style.transform='translateX(-50%)';}
+function heroBubHide(){if(heroBub)heroBub.style.display='none';}
+function startHero(){var h=pick(HEROES_X);
+WX.heroEv={h:h,phase:'in',x:31.5*T,y:(WH-1)*T,t:0,ph:0,fa:0,atk:0};
+letterbox(true);setTimeout(function(){letterbox(false);},4000);
+toast('⚡ حدث خارق: '+h.ava+' '+h.nm+' قادم!','big');
+nz(1,.3,200);tone(300,.6,'sawtooth',.15,200);}
+function heroUpdate(dt){var H=WX.heroEv;if(!H)return;var h=H.h;
+if(H.phase==='in'){var tx=SHOP_DOOR.x,ty=SHOP_DOOR.y+4*T;var d=dist(H.x,H.y,tx,ty);
+if(d>14){var a=Math.atan2(ty-H.y,tx-H.x);H.x+=Math.cos(a)*90*dt;H.y+=Math.sin(a)*90*dt;H.fa=a;H.ph+=dt*10;}
+else{H.phase='stay';H.t=75;
+for(var c=0;c<3;c++)spawnCustomer();
+heroBubShow('<div class="nm">'+h.ava+' '+h.nm+'</div><div class="txt">'+h.story+'</div><div class="txt" style="margin-top:6px">مهمة: اقتل '+h.q+' زومبي — المكافأة '+h.rw.gems+'💎 '+h.rw.money+'🪙</div><button class="btn g" id="hxA">قبول</button> <button class="btn r" id="hxR">لاحقاً</button>');
+var A=document.getElementById('hxA'),Rr=document.getElementById('hxR');
+if(A)A.onclick=function(){WX.quest={kind:'kill',n:h.q,prog:0,rw:h.rw,who:h.nm};toast('📜 مهمة '+h.nm+' بدأت!','cop');heroBubHide();};
+if(Rr)Rr.onclick=function(){heroBubHide();};}}else if(H.phase==='stay'){H.t-=dt;H.ph+=dt*6;
+H.x=SHOP_DOOR.x+Math.sin(perf/900)*60;H.y=SHOP_DOOR.y+4*T+Math.cos(perf/1100)*30;
+H.atk-=dt;
+if(H.atk<=0){H.atk=.8;var tg=null,td=1e9;
+for(var i=0;i<E.zombies.length;i++){var z=E.zombies[i];var dd=dist(H.x,H.y,z.x,z.y);if(dd<110&&dd<td){td=dd;tg=z;}}
+if(tg){tg.hp-=60;tg.flash=.2;sparkle(tg.x,tg.y-12,'#ffd95c',6);sfx('hit');}}
+if(H.t<=0){H.phase='out';heroBubHide();}}
+else{H.y+=100*dt;H.ph+=dt*10;if(H.y>WH*T+40){WX.heroEv=null;WX.heroT=rnd(300,500);}}}
+
+/* ══ [7] النسر الشيطاني + الحرائق ══ */
+function startEagle(){WX.eagle={x:-120,y:rnd(20*T,60*T),t:0,dropT:3};
+toast('🦅 النسر الشيطاني يظهر في السماء!','big');tone(900,.5,'sawtooth',.15,-400);}
+function spawnFire(x,y){if(WX.fires.length>=12)return;WX.fires.push({x:x,y:y,t:30,sp:6});}
+function eagleUpdate(dt){var E2=WX.eagle;if(!E2)return;E2.t+=dt;E2.x+=110*dt;E2.y+=Math.sin(E2.t)*40*dt;
+E2.dropT-=dt;
+if(E2.dropT<=0){E2.dropT=4;spawnFire(E2.x+rnd(-40,40),E2.y+rnd(-40,40));nz(.3,.25,600);tone(700,.3,'sawtooth',.12,-300);}
+if(E2.x>WW*T+140){WX.eagle=null;WX.eagleT=rnd(150,260);}}
+function firesUpdate(dt){for(var i=WX.fires.length-1;i>=0;i--){var f=WX.fires[i];f.t-=dt;f.sp-=dt;
+if(f.sp<=0){f.sp=7;if(Math.random()<.5)spawnFire(f.x+rnd(-60,60),f.y+rnd(-60,60));}
+/* ضرر على الدفاعات والمباني */
+var k;for(k=0;k<E.defs.length;k++){var d=E.defs[k];if(dist(f.x,f.y,d.x,d.y)<70)d.hp-=dt*6;}
+for(k=0;k<ST.buildings.length;k++){var b=ST.buildings[k];if(dist(f.x,f.y,b.x,b.y)<70){if(b.hp===undefined){var bd=null;for(var q=0;q<BUILDINGS.length;q++)if(BUILDINGS[q].id===b.id)bd=BUILDINGS[q];b.max=bd?bd.hp:300;b.hp=b.max;}b.hp-=dt*6;}}
+if(dist(f.x,f.y,SHOP.x+SHOP.w/2,SHOP.y+SHOP.h/2)<90)ST.shopHp-=dt*4;
+if(dist(f.x,f.y,P.x,P.y)<50){P.hp-=dt*5;}
+if(f.t<=0)WX.fires.splice(i,1);}}
+
+/* ══ [8] رشاش الماء (مجاني) ══ */
+var wbtn=document.createElement('button');
+wbtn.className='ab';wbtn.id='wxWater';
+wbtn.style.cssText='bottom:290px;right:26px;width:58px;height:58px;background:radial-gradient(circle at 32% 28%,#8fd4ff,#1f6fd6 55%,#0d3f8f);border-color:rgba(168,228,255,.45);box-shadow:0 5px 0 #0a2d66;z-index:9;';
+wbtn.innerHTML='<span style="font-size:24px">💧</span>';
+document.body.appendChild(wbtn);
+wbtn.onclick=function(){if(!ST)return;initAudio();WX.spray=.9;sfx('water');};
+function sprayUpdate(dt){if(WX.spray>0){WX.spray-=dt;
+var sx=P.x+Math.cos(P.dir)*80,sy=P.y+Math.sin(P.dir)*80;
+for(var i=0;i<3;i++)E.parts.push({kind:'spark',x:sx+rnd(-20,20),y:sy+rnd(-20,20),vx:rnd(-60,60),vy:rnd(-90,-20),c:'#8fd4ff',t:rnd(.3,.6)});
+for(var f=WX.fires.length-1;f>=0;f--){if(dist(WX.fires[f].x,WX.fires[f].y,sx,sy)<130){sparkle(WX.fires[f].x,WX.fires[f].y,'#dceafc',8);WX.fires.splice(f,1);sfx('water');}}}}
+
+/* ══ [9] المغارة والزعيم ══ */
+function caveUpdate(dt){var inC=dist(P.x,P.y,ZONES.cave.x,ZONES.cave.y)<ZONES.cave.r;
+if(inC&&!WX.inCave){WX.inCave=true;WX.caveLeft=100;toast('🕳️ دخلت مغارة الزومبي!','big');nz(.5,.2,300);
+if(!WX.secrets.cave){WX.secrets.cave=1;ST.gems+=3;toast('+3💎 سر المغارة!','gold');}}
+if(!inC&&WX.inCave){WX.inCave=false;
+for(var i=E.zombies.length-1;i>=0;i--)if(E.zombies[i].wxc)E.zombies.splice(i,1);}
+if(WX.inCave){WX.fxT-=dt;if(WX.fxT<=0){WX.fxT=2;nz(.06,.04,250);}
+if(WX.caveLeft>0&&E.zombies.length<14){WX.caveLeft--;var z=spawnZombie(pick(['n','f','a','po','st']));
+var lz=E.zombies[E.zombies.length-1];lz.x=ZONES.cave.x+rnd(-5*T,5*T);lz.y=ZONES.cave.y+rnd(-4*T,4*T);lz.wxc=1;}
+if(Math.random()<dt*.05&&E.chests.length<4)E.chests.push({x:ZONES.cave.x+rnd(-5*T,5*T),y:ZONES.cave.y+rnd(-4*T,4*T),t:40});}}
+function startBoss(){if(WX.cd.boss&&Date.now()<WX.cd.boss){toast('الزعيم يعود بعد '+Math.ceil((WX.cd.boss-Date.now())/1000)+' ث','red');return;}
+toast('⚔️ زعيم الزومبي استيقظ!','big');sfx('alarm');shake=8;E.zombies.push({x:60*T,y:4*T,t:'ul',hp:3000,max:3000,dmg:30,spd:16,sc:2.6,atkCd:0,flash:0,ph:0,spawn:1,color:'#2a0a1a',slowT:0,stealCd:0,boss:1,ph1:0,ph2:0});}
+function bossUpdate(dt){for(var i=0;i<E.zombies.length;i++){var z=E.zombies[i];if(!z.boss)continue;
+if(!z.ph1&&z.hp<2000){z.ph1=1;for(var k=0;k<3;k++){spawnZombie('n');var lz=E.zombies[E.zombies.length-1];lz.x=z.x+rnd(-60,60);lz.y=z.y+rnd(-60,60);}toast('👹 الزعيم يستدعي مساعدين!','red');}
+if(!z.ph2&&z.hp<1000){z.ph2=1;for(var k2=0;k2<3;k2++){spawnZombie('f');var lz2=E.zombies[E.zombies.length-1];lz2.x=z.x+rnd(-60,60);lz2.y=z.y+rnd(-60,60);}toast('👹 الزعيم غاضب!','red');}}}
+
+/* ══ [10] لف killZombie: مكافآت + مهام ══ */
+var _kz=window.killZombie;
+window.killZombie=function(i){var z=E.zombies[i];
+if(z){if(WX.quest&&WX.quest.kind==='kill')WX.quest.prog++;
+if(z.boss){ST.money+=3000;ST.gems+=20;ST.chestTokens++;WX.bossKills++;WX.cd.boss=Date.now()+300000;
+toast('🏆 سقط زعيم الزومبي! +3000🪙 +20💎','big');sfx('win');shake=10;sparkle(z.x,z.y,'#c86bff',40);}
+else if(z.wxc){ST.money+=5;if(Math.random()<.1)ST.gems+=1;}}
+_kz(i);};
+
+/* ══ [11] التفاعل: مناطق + سوق + زعيم ══ */
+function myNearest(){if(!ST)return null;var best=null,bd=90;
+var db=dist(P.x,P.y,60*T,3.5*T);
+if(db<100)return{k:'boss',l:'⚔️ تحدي زعيم الزومبي'};
+for(var i=0;i<WX.resN.length;i++){var n=WX.resN[i];if(n.hp<=0)continue;var d=dist(P.x,P.y,n.x,n.y);if(d<bd){bd=d;best={k:'res',i:i,l:n.t==='rtree'?'🪓 قطع نادر':(n.t==='rgold'?'⛏️ تنقيب ذهب':'⛏️ استخراج نادر')};}}
+if(WX.inCity){for(var s=0;s<3;s++){var sp=stallPos(s);var d2=dist(P.x,P.y,sp.x,sp.y);if(d2<bd){bd=d2;best={k:'stall',l:'🛒 سوق المدينة النادرة'};}}}
+return best;}
+var _ni=window.nearestInteract;
+window.nearestInteract=function(){var b=_ni();if(b)return b;return myNearest();};
+var _it=window.interact;
+window.interact=function(){var b=myNearest();if(!b){_it();return;}
+sfx('click');
+if(b.k==='boss'){startBoss();return;}
+if(b.k==='res'){var n=WX.resN[b.i];n.hp--;sfx('hit');sparkle(n.x,n.y,'#8fffb0',6);
+if(n.t==='rtree'){ST.res.wood+=5;fText(n.x,n.y-40,'+5 خشب','#c98f57');}
+else if(n.t==='rrock'){ST.res.stone+=5;fText(n.x,n.y-40,'+5 حجر','#b8c2cc');}
+else{ST.money+=80;fText(n.x,n.y-40,'+80🪙','#ffd95c');}
+if(n.hp<=0){n.rt=120;toast('نفد المورد — يعود لاحقاً');}
+gainXP(3);return;}
+if(b.k==='stall'){openP('سوق المدينة النادرة',function(){
+var h='<div class="hint">بضائع نادرة من مدينة الفجر!</div>';
+h+='<div class="row"><span>🪵 خشب نادر ×10</span><button class="btn p" data-wx="w1">4💎</button></div>';
+h+='<div class="row"><span>💎 حقيبة جواهر ×8</span><button class="btn" data-wx="w2">2000🪙</button></div>';
+h+='<div class="row"><span>🎁 قطعة خزانة نادرة</span><button class="btn p" data-wx="w3">25💎</button></div>';
+return h;},'cart');return;}};
+document.getElementById('pbody').addEventListener('click',function(e){
+var b=e.target?e.target.closest('[data-wx]'):null;if(!b||!ST)return;var a=b.dataset.wx;initAudio();
+if(a==='w1'){if(ST.gems<4){toast('جواهر غير كافية','red');return;}ST.gems-=4;ST.res.wood+=10;toast('+10 خشب نادر','gold');}
+else if(a==='w2'){if(ST.money<2000){toast('مال غير كافٍ','red');return;}ST.money-=2000;ST.gems+=8;toast('+8💎','gold');}
+else if(a==='w3'){if(ST.gems<25){toast('جواهر غير كافية','red');return;}ST.gems-=25;var avail=WARDROBE.filter(function(it){return ST.owned.indexOf(it.id)<0;});if(avail.length){var it=pick(avail);ST.owned.push(it.id);toast('حصلت على: '+it.n,'big');}else{ST.gems+=20;}}
+sfx('chest');refreshP();});
+
+/* ══ [12] حلقة التحديث الموسّعة ══ */
+function myUpdate(dt){if(!ST)return;
+/* مناطق */
+var inC=dist(P.x,P.y,ZONES.city.x,ZONES.city.y)<ZONES.city.r;if(inC&&!WX.inCity){WX.inCity=true;toast(ZONES.city.nm,'big');if(!WX.secrets.city){WX.secrets.city=1;ST.gems+=5;toast('+5💎 سر المدينة!','gold');}}
+if(!inC)WX.inCity=false;
+var zk;for(zk in ZONES){var zn=ZONES[zk];if(zk!=='city'&&zk!=='cave'&&dist(P.x,P.y,zn.x,zn.y)<zn.r&&WX.zone!==zk){WX.zone=zk;toast(zn.nm,'big');if(zk==='forest'&&!WX.secrets.forest){WX.secrets.forest=1;ST.res.wood+=10;toast('+10 خشب','gold');}if(zk==='mine'&&!WX.secrets.mine){WX.secrets.mine=1;ST.res.stone+=10;toast('+10 حجر','gold');}}}
+/* عقد نادرة تعود */
+for(var rn=0;rn<WX.resN.length;rn++){var nd=WX.resN[rn];if(nd.hp<=0){nd.rt-=dt;if(nd.rt<=0)nd.hp=3;}}
+/* سكان المدينة */
+if(WX.inCity){while(WX.cityN.length<5)WX.cityN.push({x:ZONES.city.x+rnd(-6*T,6*T),y:ZONES.city.y+rnd(-3*T,3*T),tx:0,ty:0,ph:rnd(0,9),shirt:pick(['#c0392b','#2980b9','#8e44ad','#16a085'])});
+for(var cn=0;cn<WX.cityN.length;cn++){var c=WX.cityN[cn];
+if(dist(c.x,c.y,c.tx,c.ty)<10||!c.tx){c.tx=ZONES.city.x+rnd(-6*T,6*T);c.ty=ZONES.city.y+rnd(-3*T,3*T);}
+var ca=Math.atan2(c.ty-c.y,c.tx-c.x);c.x+=Math.cos(ca)*30*dt;c.y+=Math.sin(ca)*30*dt;c.ph+=dt*8;}}
+else WX.cityN.length=0;
+caveUpdate(dt);bossUpdate(dt);heroUpdate(dt);eagleUpdate(dt);firesUpdate(dt);sprayUpdate(dt);
+/* أحداث */
+WX.heroT-=dt;if(WX.heroT<=0&&!WX.heroEv){WX.heroT=9999;startHero();}
+WX.eagleT-=dt;if(WX.eagleT<=0&&!WX.eagle){WX.eagleT=9999;startEagle();}
+/* برق يشعل حرائق */
+if(lightning>0&&Math.random()<.02)spawnFire(P.x+rnd(-300,300),P.y+rnd(-300,300));
+/* مهام البطل */
+if(WX.quest&&WX.quest.prog>=WX.quest.n){var rw=WX.quest.rw;ST.gems+=rw.gems;ST.money+=rw.money;
+toast('🎖️ أنجزت مهمة '+WX.quest.who+'! +'+rw.gems+'💎','big');sfx('win');WX.quest=null;}
+/* دفاعات جديدة تطلق */
+for(var di=0;di<E.defs.length;di++){var d=E.defs[di];if(d.hp<=0)continue;
+if(d.hp<d.max)d.hp=Math.min(d.max,d.hp+dt*3);
+if(d.t!=='mgun'&&d.t!=='rocket'&&d.t!=='city')continue;
+d.wxcd=(d.wxcd||0)-dt;if(d.wxcd>0)continue;
+var rng=d.t==='mgun'?220:(d.t==='rocket'?300:380);
+var tg=null,td=1e9;
+for(var zi=0;zi<E.zombies.length;zi++){var z=E.zombies[zi];var dd=dist(d.x,d.y,z.x,z.y);if(dd<rng&&dd<td){td=dd;tg=z;}}
+if(!tg)continue;
+var aa=Math.atan2(tg.y-d.y,tg.x-d.x);
+if(d.t==='mgun'){d.wxcd=.3;WX.projs.push({x:d.x,y:d.y-30,vx:Math.cos(aa)*380,vy:Math.sin(aa)*380,dmg:6,life:.8,sp:0});sfx('shoot');d.wxmuz=.1;}
+else if(d.t==='rocket'){d.wxcd=2.5;WX.projs.push({x:d.x,y:d.y-30,vx:Math.cos(aa)*220,vy:Math.sin(aa)*220,dmg:40,life:1.6,sp:80});sfx('place');d.wxmuz=.15;}
+else{d.wxcd=5;WX.projs.push({x:d.x,y:d.y-30,vx:Math.cos(aa)*260,vy:Math.sin(aa)*260,dmg:25,life:1.8,sp:100});shake=Math.max(shake,2);nz(.3,.3,400);d.wxmuz=.2;}}
+if(d&&d.wxmuz>0)d.wxmuz-=dt;
+/* مقذوفاتي */
+for(var pi=WX.projs.length-1;pi>=0;pi--){var p=WX.projs[pi];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;var hit=false;
+for(var zj=E.zombies.length-1;zj>=0;zj--){var z2=E.zombies[zj];if(dist(p.x,p.y,z2.x,z2.y)<18*z2.sc){hit=true;
+if(p.sp){for(var zq=E.zombies.length-1;zq>=0;zq--){var z3=E.zombies[zq];if(dist(p.x,p.y,z3.x,z3.y)<p.sp){z3.hp-=p.sp;z3.flash=.15;if(z3.hp<=0)killZombie(zq);}}
+sparkle(p.x,p.y,'#ff9d2e',16);nz(.3,.35,300);shake=Math.max(shake,3);}
+else{z2.hp-=p.dmg;z2.flash=.15;sparkle(p.x,p.y,'#ffd95c',4);sfx('hit');if(z2.hp<=0)killZombie(zj);}
+break;}}
+if(hit||p.life<=0)WX.projs.splice(pi,1);}
+/* أداء: حد الجسيمات */
+if(E.parts.length>450)E.parts.splice(0,E.parts.length-450);}
+
+/* ══ [13] الرسم الموسّع ══ */
+function myRender(){if(!ST)return;var g=ctx;
+/* عقد نادرة */
+for(var i=0;i<WX.resN.length;i++){var n=WX.resN[i];if(n.hp<=0)continue;var nx=n.x-cam.x,ny=n.y-cam.y;if(nx<-80||nx>VW+80||ny<-80||ny>VH+80)continue;
+if(n.t==='rtree'){g.fillStyle='#6b4426';rrect(g,nx-5,ny-8,10,26,3);g.fill();g.fillStyle='#2e7a20';ellipse(g,nx,ny-26,30,24);g.fill();g.fillStyle='#ffd95c';ellipse(g,nx-8,ny-30,3,3);g.fill();ellipse(g,nx+9,ny-22,3,3);g.fill();}else if(n.t==='rrock'){g.fillStyle='#7a8590';g.beginPath();g.moveTo(nx-22,ny+12);g.lineTo(nx-10,ny-16);g.lineTo(nx+12,ny-10);g.lineTo(nx+22,ny+12);g.closePath();g.fill();g.fillStyle='#8fd4ff';ellipse(g,nx,ny-4,3,3);g.fill();}
+else{g.fillStyle='#8a6a20';g.beginPath();g.moveTo(nx-20,ny+12);g.lineTo(nx-8,ny-14);g.lineTo(nx+12,ny-8);g.lineTo(nx+20,ny+12);g.closePath();g.fill();g.fillStyle='#ffd95c';ellipse(g,nx-4,ny-2,4,4);g.fill();ellipse(g,nx+7,ny+4,3,3);g.fill();}}
+/* سكان المدينة */
+for(var c=0;c<WX.cityN.length;c++){var cc=WX.cityN[c];var cx2=cc.x-cam.x,cy2=cc.y-cam.y;if(cx2<-60||cx2>VW+60)continue;
+drawBiped(g,cx2,cy2,{sc:1,fx:Math.cos(Math.atan2(cc.ty-cc.y,cc.tx-cc.x))>=0?1:-1,ph:cc.ph,mv:true,kind:'p',skin:'#f0c8a0',shirt:cc.shirt,pants:'#4a4a5e'});}
+/* دفاعات جديدة: رسم فوق */
+for(var di=0;di<E.defs.length;di++){var d=E.defs[di];if(d.t!=='mgun'&&d.t!=='rocket'&&d.t!=='city')continue;var dx=d.x-cam.x,dy=d.y-cam.y;if(dx<-70||dx>VW+70)continue;
+g.fillStyle='#37424e';ellipse(g,dx,dy+6,18,7);g.fill();
+g.fillStyle=d.t==='mgun'?'#5a6e3a':(d.t==='rocket'?'#8a2a2a':'#2a5aa0');rrect(g,dx-12,dy-18,24,22,4);g.fill();
+g.fillStyle='#22282e';rrect(g,dx-3,dy-32,6,16,2);g.fill();
+if(d.t==='rocket'){g.fillStyle='#d05a3a';g.beginPath();g.moveTo(dx-3,dy-32);g.quadraticCurveTo(dx,dy-40,dx+3,dy-32);g.closePath();g.fill();}
+if(d.wxmuz>0){g.fillStyle='#ffd95c';ellipse(g,dx,dy-34,6,6);g.fill();}}
+/* مقذوفاتي */
+for(var pi=0;pi<WX.projs.length;pi++){var p=WX.projs[pi];var px=p.x-cam.x,py=p.y-cam.y;
+if(p.sp){g.fillStyle='#d5dde4';rrect(g,px-3,py-6,6,12,3);g.fill();g.fillStyle='#ff9d2e';ellipse(g,px,py+8,3,4);g.fill();}
+else{g.strokeStyle='#8fffb0';g.lineWidth=2;g.beginPath();g.moveTo(px-p.vx*.02,py-p.vy*.02);g.lineTo(px,py);g.stroke();}}
+/* حرائق */
+for(var f=0;f<WX.fires.length;f++){var fr=WX.fires[f];var fx2=fr.x-cam.x,fy2=fr.y-cam.y;if(fx2<-60||fx2>VW+60)continue;
+var fl2=Math.sin(perf/70+f)*3;
+g.fillStyle='rgba(120,60,20,.5)';ellipse(g,fx2,fy2+4,16,6);g.fill();
+g.fillStyle='#ff6a00';g.beginPath();g.moveTo(fx2-10,fy2+4);g.quadraticCurveTo(fx2-6,fy2-14-fl2,fx2,fy2-22-fl2);g.quadraticCurveTo(fx2+6,fy2-14+fl2,fx2+10,fy2+4);g.closePath();g.fill();
+g.fillStyle='#ffd95c';g.beginPath();g.moveTo(fx2-5,fy2+4);g.quadraticCurveTo(fx2,fy2-10+fl2,fx2+5,fy2+4);g.closePath();g.fill();
+g.fillStyle='rgba(90,90,90,'+(0.3+0.2*Math.sin(perf/120+f))+')';ellipse(g,fx2,fy2-30-((perf/20+f*13)%20),7,7);g.fill();}
+/* رش الماء */
+if(WX.spray>0){var sx=P.x+Math.cos(P.dir)*60-cam.x,sy=P.y+Math.sin(P.dir)*60-cam.y;
+g.fillStyle='rgba(143,212,255,.7)';g.beginPath();g.moveTo(P.x-cam.x,P.y-cam.y-16);g.lineTo(sx-24,sy-30);g.lineTo(sx+24,sy+6);g.closePath();g.fill();}
+/* النسر */
+if(WX.eagle){var eg=WX.eagle;var ex=eg.x-cam.x,ey=eg.y-cam.y-140;
+g.fillStyle='rgba(0,0,0,.3)';ellipse(g,ex,eg.y-cam.y,26,8);g.fill();
+var wf=Math.sin(perf/70)*14;
+g.fillStyle='#1a1a2a';g.beginPath();g.moveTo(ex-8,ey);g.quadraticCurveTo(ex-34,ey-10-wf,ex-46,ey+4-wf);g.lineTo(ex-8,ey+6);g.closePath();g.fill();
+g.beginPath();g.moveTo(ex+8,ey);g.quadraticCurveTo(ex+34,ey-10-wf,ex+46,ey+4-wf);g.lineTo(ex+8,ey+6);g.closePath();g.fill();
+ellipse(g,ex,ey,10,14);g.fill();
+g.fillStyle='#ff3b3b';ellipse(g,ex-3,ey-8,2,2);g.fill();ellipse(g,ex+3,ey-8,2,2);g.fill();}
+/* البطل الخارق */
+if(WX.heroEv){var H=WX.heroEv;var hx=H.x-cam.x,hy=H.y-cam.y;
+g.save();g.shadowColor='#ffd95c';g.shadowBlur=18;
+drawBiped(g,hx,hy,{sc:1.15,fx:Math.cos(H.fa||0)>=0?1:-1,ph:H.ph,mv:true,kind:'p',skin:'#f0c8a0',shirt:H.h.color,pants:'#22304a',cape:!!H.h.cape,capeColor:H.h.cape,crown:H.h.id==='super',nameLabel:H.h.ava+' '+H.h.nm,nameColor:'#ffd95c'});
+g.restore();}
+/* هالة الزعيم */
+for(var bz=0;bz<E.zombies.length;bz++){var zb=E.zombies[bz];if(!zb.boss)continue;var bzx=zb.x-cam.x,bzy=zb.y-cam.y;
+g.strokeStyle='rgba(200,107,255,'+(0.4+Math.sin(perf/200)*.2)+')';g.lineWidth=4;g.beginPath();g.arc(bzx,bzy-20,50,0,7);g.stroke();
+g.fillStyle='rgba(0,0,0,.7)';rrect(g,VW/2-160,60,320,14,7);g.fill();
+g.fillStyle='#c86bff';rrect(g,VW/2-160,60,320*clamp(zb.hp/zb.max,0,1),14,7);g.fill();
+g.fillStyle='#fff';g.font='bold 12px Tahoma';g.textAlign='center';g.fillText('👹 زعيم الزومبي',VW/2,54);}
+/* ظلام المغارة */
+if(WX.inCave){var gr=g.createRadialGradient(VW/2,VH/2,80,VW/2,VH/2,Math.max(VW,VH)*.7);
+gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,10,.85)');
+g.fillStyle=gr;g.fillRect(0,0,VW,VH);}}
+/* ══ [14] دمج آمن بالحلقات الأصلية ══ */
+var _u=window.update;
+window.update=function(dt){try{_u(dt);}catch(e){}try{myUpdate(dt);}catch(e){}};
+var _r=window.render;
+window.render=function(){try{_r();}catch(e){}try{myRender();}catch(e){}};
+
+/* ══ [15] أوامر اختبار ══ */
+WX.test={boss:startBoss,hero:startHero,eagle:startEagle,fire:function(){spawnFire(P.x+80,P.y);}};
+console.log('%c🌍 WORLD EXPANSION ✓','color:#8fffb0;font-weight:bold');
+setTimeout(function(){toast('🌍 World Expansion: مدن، مغارة، زعيم، أبطال، حرائق!','big');},2000);
+}
+if(window.ST||document.getElementById('cv'))initWX();
+else setTimeout(initWX,800);
+})();
+</script>
+<script>
+/* 🛠️ إصلاح: لا يمكن الضرب بعد الموت والعودة للحياة */
+setInterval(function(){
+if(window.P && P.dead < 0) P.dead = 0;
+}, 50);
 </script>
 </body>
 </html>
