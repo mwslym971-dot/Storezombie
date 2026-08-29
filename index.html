@@ -3058,91 +3058,6 @@ console.log('CLOUD-SYNC ✓');
 })();
 </script>
 <script>
-/* ═══ NET-FIX V2: سلاسة + عدم اختفاء + أنيميشن مشي ═══ */
-(function(){'use strict';
-function nf2(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
-nf2(function(){
-if(!window.Cloud||!window.DB)return;
-
-/* [1] نبض حضور كامل كل 2.5ث — يعيد إنشاء السجل إن حُذف (يحل الاختفاء نهائياً) */
-setInterval(function(){
-if(window.ST&&window.P&&Cloud.connected&&Cloud.connected()){
-try{
-DB.ref('players_online/'+Cloud._uid).update({
-name:ST.name,level:ST.level,custom:ST.custom||null,uid:Cloud._uid,
-x:P.x,y:P.y,lastSeen:Date.now()}).catch(function(){});
-}catch(e){}}
-},2500);
-window.addEventListener('focus',function(){
-if(window.ST&&Cloud.connected&&Cloud.connected())Cloud.goOnline(ST);});
-
-/* [2] إرسال الموقع كل 250 مللي (4× أسرع) */
-setInterval(function(){
-if(window.ST&&window.P&&Cloud.connected&&Cloud.connected())Cloud.updatePosition(P.x,P.y);
-},250);
-
-/* [3] استقبال: فلترة المنتهين + أهداف ناعمة */
-var _opo=Cloud.onPlayersOnline;
-Cloud.onPlayersOnline=function(cb){
-return _opo.call(Cloud,function(all){
-var now=Date.now(),keep=[],i,j;
-for(i=0;i<all.length;i++){var q=all[i];if(!q)continue;
-if(q.uid===Cloud._uid||(now-(q.lastSeen||0))<60000)keep.push(q);}
-for(i=0;i<keep.length;i++){
-var p=keep[i];
-var tx=+p.x,ty=+p.y;
-if(!isFinite(tx))tx=0;if(!isFinite(ty))ty=0;
-p._tx=tx;p._ty=ty;
-var old=null;
-for(j=0;j<E.otherPlayers.length;j++)if(E.otherPlayers[j].uid===p.uid){old=E.otherPlayers[j];break;}
-if(!old){p.x=tx;p.y=ty;}
-else{
-var jump=Math.hypot(tx-old.x,ty-old.y);
-if(jump>900){p.x=tx;p.y=ty;}
-else{p.x=old.x;p.y=old.y;}}}
-cb(keep);
-});};
-
-/* [4] استيفاء أسرع وأنعم (معامل 8 بدل 5) */
-var _u=window.update;
-window.update=function(dt){
-_u(dt);
-if(window.E&&E.otherPlayers){
-var k=Math.min(1,dt*8);
-for(var i=0;i<E.otherPlayers.length;i++){
-var p=E.otherPlayers[i];
-if(p._tx===undefined)continue;
-p.x+=(p._tx-p.x)*k;
-p.y+=(p._ty-p.y)*k;
-}}};
-
-/* [5] أنيميشن مشي حقيقي للاعبين الآخرين + اتجاه الحركة */
-var _db=window.drawBiped;var LP={};
-window.drawBiped=function(g,x,y,o){
-if(o&&o.nameLabel&&o.kind==='p'&&o.mv===undefined){
-var wx=x+cam.x,wy=y+cam.y;
-var e=LP[o.nameLabel];
-if(!e){e=LP[o.nameLabel]={x:wx,y:wy,ph:0};o.mv=false;o.ph=0;}
-else{
-var ddx=wx-e.x,ddy=wy-e.y;
-var moved=(Math.abs(ddx)+Math.abs(ddy))>0.8;
-o.mv=moved;
-if(moved){
-e.ph+=0.3;               /* سرعة أرجل أعلى = مشي طبيعي سريع */
-if(Math.abs(ddx)>0.2)o.fx=ddx>=0?1:-1;  /* يواجه اتجاه حركته */
-}
-e.x=wx;e.y=wy;
-o.ph=e.ph;}
-if(Object.keys(LP).length>60)LP={};
-}
-return _db(g,x,y,o);
-};
-
-console.log('NET-FIX V2 ✓');
-});
-})();
-</script>
-<script>
 /* ═══ FRIENDS-FIX: حماية لوحة الأصدقاء من البيانات الناقصة ═══ */
 (function(){'use strict';
 function norm(d){
@@ -3162,44 +3077,64 @@ console.log('FRIENDS-FIX ✓');
 })();
 </script>
 <script>
-/* ═══ PRESENCE-FIX: إصلاح الرؤية باتجاه واحد ═══ */
+/* ═══ ONLINE-SYNC V3: رؤية متبادلة مضمونة ═══ */
 (function(){'use strict';
-function pf(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
-pf(function(){
+function os3(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+os3(function(){
 if(!window.DB||!window.Cloud)return;
-var guestUid=null;
-function effUid(){return Cloud._uid||guestUid;}
-function ensureGuest(){
-if(Cloud._uid||guestUid||!fbOk)return;
-guestUid='g'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
-try{DB.ref('players_online/'+guestUid).onDisconnect().remove().catch(noop);}catch(e){}}
-function pub(){
-if(!window.ST||!fbOk)return;
-ensureGuest();
-var uid=effUid();if(!uid)return;
-try{DB.ref('players_online/'+uid).update({
-name:ST.name||'لاعب',
-x:window.P?P.x:0,y:window.P?P.y:0,
-level:ST.level||1,custom:ST.custom||null,
-uid:uid,lastSeen:Date.now()}).catch(noop);}catch(e){}}
-/* نشر دوري كل ثانيتين — يعيد إنشاء أي سجل محذوف بعد انقطاع */
-setInterval(pub,2000);
-/* نشر فوري عند عودة الاتصال */
-try{DB.ref('.info/connected').on('value',function(s){if(s.val()===true)pub();});}catch(e){}
-/* عند تسجيل الدخول: احذف سجل الزائر المؤقت */
-var _su=Cloud.setUid;
-Cloud.setUid=function(u){
-if(u&&guestUid){try{DB.ref('players_online/'+guestUid).remove().catch(noop);}catch(e){}guestUid=null;}
-return _su.call(Cloud,u);};
-/* لا تُظهر نسختك الخاصة لك (زائر أو حساب) */
-var _opo=Cloud.onPlayersOnline;
-Cloud.onPlayersOnline=function(cb){return _opo.call(Cloud,function(all){
-var f=[],i;for(i=0;i<all.length;i++){if(all[i]&&all[i].uid===effUid())continue;f.push(all[i]);}
-cb(f);});};
-/* بدء النشر مع بداية اللعبة */
-var _sg=window.startGame;
-window.startGame=function(){_sg();pub();setTimeout(pub,1500);};
-console.log('PRESENCE-FIX ✓');
+var REC={},POS={};
+function keyOf(p){return p.uid||('n_'+(p.name||'?'));}
+/* حيوية بدون مقارنة الساعات: lastSeen يتغير كل ثانية عند المتصل الحقيقي */
+function alive(p){
+var k=keyOf(p),now=Date.now(),ls=p.lastSeen||0,r=REC[k];
+if(!r){REC[k]={ls:ls,t:now};return true;}
+if(ls!==r.ls){REC[k]={ls:ls,t:now};return true;}
+return (now-r.t)<=20000;}
+/* 1) نبض كامل كل ثانيتين: يعيد name/uid بعد أي انقطاع */
+setInterval(function(){
+if(window.ST&&window.P&&Cloud.connected()){
+try{DB.ref('players_online/'+Cloud._uid).update({
+name:ST.name,uid:Cloud._uid,level:ST.level,custom:ST.custom||null,
+x:P.x,y:P.y,lastSeen:Date.now()}).catch(noop);}catch(e){}}
+},2000);
+/* 2) نشر كامل عند عودة الاتصال أو فتح التبويب */
+function fullPub(){
+if(!window.ST||!Cloud.connected())return;
+try{var r=DB.ref('players_online/'+Cloud._uid);
+r.set({name:ST.name,x:P.x,y:P.y,level:ST.level,lastSeen:Date.now(),uid:Cloud._uid,custom:ST.custom||null}).catch(noop);
+try{r.onDisconnect().remove().catch(noop);}catch(e){}}catch(e){}}
+try{DB.ref('.info/connected').on('value',function(s){if(s.val()===true)fullPub();});}catch(e){}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)fullPub();});
+window.addEventListener('focus',fullPub);
+/* 3) مستمع قوي: إعادة ربط تلقائية + فلترة عادلة للطرفين */
+Cloud.onPlayersOnline=function(cb){
+var ref=DB.ref('players_online'),last=Date.now();
+var h=function(s){last=Date.now();var a=[];s.forEach(function(c){a.push(c.val());});
+var keep=[],i;
+for(i=0;i<a.length;i++){var p=a[i];if(!p)continue;
+if(p.uid===Cloud._uid)continue;
+if(!p.uid&&p.name&&window.ST&&p.name===ST.name)continue;
+if(!alive(p))continue;
+var k=keyOf(p),tx=+p.x||0,ty=+p.y||0,prev=POS[k];
+if(prev&&Math.hypot(tx-prev.x,ty-prev.y)>900)prev=null;
+p._tx=tx;p._ty=ty;
+p.x=prev?prev.x:tx;p.y=prev?prev.y:ty;
+keep.push(p);}
+if(Object.keys(REC).length>120){REC={};POS={};}
+cb(keep);};
+function attach(){try{ref.off('value',h);}catch(e){}
+try{ref.on('value',h,function(){setTimeout(attach,4000);});}catch(e){}}
+attach();
+setInterval(function(){if(Date.now()-last>15000)attach();},10000);};
+/* 4) حركة ناعمة بدون قفزات */
+var _u=window.update;
+window.update=function(dt){_u(dt);
+if(window.E&&E.otherPlayers){var k=Math.min(1,dt*6);
+for(var i=0;i<E.otherPlayers.length;i++){var p=E.otherPlayers[i];
+if(p._tx===undefined)continue;
+p.x+=(p._tx-p.x)*k;p.y+=(p._ty-p.y)*k;
+POS[keyOf(p)]={x:p.x,y:p.y};}}};
+console.log('ONLINE-SYNC V3 ✓');
 });
 })();
 </script>
