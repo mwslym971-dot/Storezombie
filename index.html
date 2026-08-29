@@ -3161,5 +3161,114 @@ window.pFriends=function(){window.friendsData=norm(window.friendsData);return _p
 console.log('FRIENDS-FIX ✓');
 })();
 </script>
+<script>
+/* ═══ PRESENCE-FIX: إصلاح الرؤية باتجاه واحد ═══ */
+(function(){'use strict';
+function pf(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+pf(function(){
+if(!window.DB||!window.Cloud)return;
+var guestUid=null;
+function effUid(){return Cloud._uid||guestUid;}
+function ensureGuest(){
+if(Cloud._uid||guestUid||!fbOk)return;
+guestUid='g'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+try{DB.ref('players_online/'+guestUid).onDisconnect().remove().catch(noop);}catch(e){}}
+function pub(){
+if(!window.ST||!fbOk)return;
+ensureGuest();
+var uid=effUid();if(!uid)return;
+try{DB.ref('players_online/'+uid).update({
+name:ST.name||'لاعب',
+x:window.P?P.x:0,y:window.P?P.y:0,
+level:ST.level||1,custom:ST.custom||null,
+uid:uid,lastSeen:Date.now()}).catch(noop);}catch(e){}}
+/* نشر دوري كل ثانيتين — يعيد إنشاء أي سجل محذوف بعد انقطاع */
+setInterval(pub,2000);
+/* نشر فوري عند عودة الاتصال */
+try{DB.ref('.info/connected').on('value',function(s){if(s.val()===true)pub();});}catch(e){}
+/* عند تسجيل الدخول: احذف سجل الزائر المؤقت */
+var _su=Cloud.setUid;
+Cloud.setUid=function(u){
+if(u&&guestUid){try{DB.ref('players_online/'+guestUid).remove().catch(noop);}catch(e){}guestUid=null;}
+return _su.call(Cloud,u);};
+/* لا تُظهر نسختك الخاصة لك (زائر أو حساب) */
+var _opo=Cloud.onPlayersOnline;
+Cloud.onPlayersOnline=function(cb){return _opo.call(Cloud,function(all){
+var f=[],i;for(i=0;i<all.length;i++){if(all[i]&&all[i].uid===effUid())continue;f.push(all[i]);}
+cb(f);});};
+/* بدء النشر مع بداية اللعبة */
+var _sg=window.startGame;
+window.startGame=function(){_sg();pub();setTimeout(pub,1500);};
+console.log('PRESENCE-FIX ✓');
+});
+})();
+</script>
+<script>
+/* ═══ PROGRESS-GUARD: لا يضيع التقدم عند الخروج والعودة ═══ */
+(function(){'use strict';
+function pgReady(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+pgReady(function(){
+if(!window.Cloud)return;
+
+/* 1) نسخة احتياطية محلية لكل حساب مع كل حفظ */
+var _ss=Cloud.saveState;
+Cloud.saveState=function(s){
+try{if(Cloud._uid&&s)LS.set('mz_bak_'+Cloud._uid,JSON.stringify(s));}catch(e){}
+return _ss.call(Cloud,s);};
+setInterval(function(){
+if(window.ST&&Cloud._uid){try{LS.set('mz_bak_'+Cloud._uid,JSON.stringify(ST));}catch(e){}}
+},5000);
+
+/* 2) تحميل الأحدث: سحابي أو محلي */
+function loadBest(){
+var local=null;
+try{local=JSON.parse(LS.get('mz_bak_'+(Cloud._uid||''))||'null');}catch(e){}
+if(!Cloud.connected())return Promise.resolve(local);
+return Cloud.loadState().then(function(cloud){
+if(local&&(!cloud||((local.lastSeen||0)>(cloud.lastSeen||0))))return local;
+return cloud||local;
+}).catch(function(){return local;});}
+
+/* 3) استبدال afterAuth: لا بدء قبل اكتمال التحميل (نهاية سباق الـ3ث) */
+window.afterAuth=function(user,name){
+if(window.authStarted)return;window.authStarted=true;
+Cloud.setUid(user.uid);
+var finalName=name||user.displayName||'';
+var started=false;
+function begin(state,pname){
+if(started)return;started=true;
+try{
+if(state)ST=mergeState(state);
+if(!ST)ST=defaultState('لاعب');
+if(pname)ST.name=pname;else if(finalName)ST.name=finalName;
+startGame();
+if(Cloud.connected()){
+Cloud.goOnline(ST);
+Cloud.onFriends(function(d){friendsData=d;var c=Object.keys(d.pending||{}).length;var el=document.getElementById('friendBdg');if(el){if(c>0){el.textContent=c;el.style.display='block';}else el.style.display='none';}});
+try{DB.ref('users/'+user.uid+'/profile/alliance').on('value',function(s){myAllianceId=s.val();if(myAllianceId)Cloud.onAlliance(myAllianceId,function(d){allianceData=d;});else allianceData=null;},noop);}catch(e){}
+Cloud.onPlayersOnline(function(all){E.otherPlayers=all;var oc=document.getElementById('onlineCount');if(oc)oc.textContent=all.length+' متصل';});}
+save();
+if(state)setTimeout(function(){toast('☁️ تم استرداد تقدمك ✓','cop');},1200);
+}catch(err){window.__fatal('begin: '+err.message);}}
+if(Cloud.connected()){
+var settled=false;
+Promise.all([
+Cloud.getProfileName().catch(function(){return null;}),
+loadBest()
+]).then(function(res){
+if(settled)return;settled=true;
+begin(res[1],res[0]||finalName||undefined);
+}).catch(function(){
+if(settled)return;settled=true;
+begin(null,finalName||undefined);});
+/* مهلة أمان 15ث فقط إن لم تستجب الشبكة إطلاقاً */
+setTimeout(function(){if(!settled){settled=true;begin(null,finalName||undefined);}},15000);
+}else{
+begin(null,finalName||undefined);
+}};
+console.log('PROGRESS-GUARD ✓');
+});
+})();
+</script>
 </body>
 </html>
