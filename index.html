@@ -3232,77 +3232,7 @@ ctx.drawImage(VIG,0,0);};
 console.log('WF2 ✓');
 })();
 </script>
-<script>
-/* ═══ VISUALS-FINAL: عالم الصور الموحّد + حذف الروليت ═══ */
-(function(){'use strict';
-function vf(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
-vf(function(){
-if(!window.drawBG||window.VIS_FINAL)return;window.VIS_FINAL=true;
-/* ── حذف الروليت نهائياً ── */
-var stl=document.createElement('style');
-stl.textContent='#rbtn{display:none!important}#rouletteOv{display:none!important}';
-document.head.appendChild(stl);
-window.openRoulette=function(){};
-/* ── تحميل الصور ── */
-var G=null,SHOPIM=null,HOUSEIM=null,CAVEIM=null,BOSSIM=null;
-function redraw(){if(window.ST&&window.drawBG)drawBG();}
-function load(src,cb){var im=new Image();im.onload=function(){cb(im);};im.onerror=function(){cb(null);};im.src=src;}
-/* حذف الخلفية (شطرنجي/أبيض) المتصلة بالحواف فقط */
-function clean(img){var w=img.naturalWidth,h=img.naturalHeight;
-var c=document.createElement('canvas');c.width=w;c.height=h;
-var g=c.getContext('2d');g.drawImage(img,0,0);
-try{var d=g.getImageData(0,0,w,h),p=d.data,seen=new Uint8Array(w*h),q=[],x,y;
-function isBG(i){var r=p[i],gg=p[i+1],b=p[i+2];
-var mn=r<gg?(r<b?r:b):(gg<b?gg:b),mx=r>gg?(r>b?r:b):(gg>b?gg:b);
-return (mx-mn)<28&&mn>135;}
-function push(xx,yy){var idx=yy*w+xx;if(seen[idx])return;if(!isBG(idx*4))return;seen[idx]=1;q.push(idx);}
-for(x=0;x<w;x++){push(x,0);push(x,h-1);}
-for(y=0;y<h;y++){push(0,y);push(w-1,y);}
-while(q.length){var idx=q.pop();p[idx*4+3]=0;
-var xx=idx%w,yy=(idx-xx)/w;
-if(xx>0)push(xx-1,yy);if(xx<w-1)push(xx+1,yy);
-if(yy>0)push(xx,yy-1);if(yy<h-1)push(xx,yy+1);}
-g.putImageData(d,0,0);}catch(e){}
-return c;}
-load('ground.png',function(x){G=x;redraw();});
-load('shop.png',function(x){SHOPIM=x;redraw();});
-load('house.png',function(x){HOUSEIM=x?clean(x):null;redraw();});
-load('cave.png',function(x){CAVEIM=x;redraw();});
-load('boss.png',function(x){BOSSIM=x?clean(x):null;redraw();});
-function lbl(g,x,y,t){g.font='bold 13px Tahoma';g.textAlign='center';
-var w=g.measureText(t).width+16;g.fillStyle='rgba(0,0,0,.6)';rrect(g,x-w/2,y-14,w,18,8);g.fill();
-g.fillStyle='#ffd95c';g.fillText(t,x,y);}
-function drawPlayerBld(g,bd){var bx=bd.x,by=bd.y,bdef=null,j;
-for(j=0;j<BUILDINGS.length;j++)if(BUILDINGS[j].id===bd.id)bdef=BUILDINGS[j];if(!bdef)return;
-g.fillStyle='rgba(0,0,0,.25)';ellipse(g,bx,by+14,24,7);g.fill();
-if(bd.id==='house2'){g.fillStyle='#8a5c34';rrect(g,bx-24,by-14,48,28,4);g.fill();g.fillStyle='#c0392b';g.beginPath();g.moveTo(bx-28,by-12);g.lineTo(bx,by-30);g.lineTo(bx+28,by-12);g.closePath();g.fill();}
-else if(bd.id==='workshop'){g.fillStyle='#8a5a3a';rrect(g,bx-26,by-12,52,26,4);g.fill();g.fillStyle='#5a3a1a';g.beginPath();g.moveTo(bx-30,by-10);g.lineTo(bx,by-32);g.lineTo(bx+30,by-10);g.closePath();g.fill();}
-else if(bd.id==='storage'){g.fillStyle='#86919c';rrect(g,bx-26,by-12,52,26,4);g.fill();g.fillStyle='#5a6470';rrect(g,bx-28,by-16,56,8,2);g.fill();}
-else if(bd.id==='watchtower'){g.strokeStyle='#6b4426';g.lineWidth=4;g.beginPath();g.moveTo(bx-10,by+14);g.lineTo(bx-6,by-14);g.moveTo(bx+10,by+14);g.lineTo(bx+6,by-14);g.stroke();g.fillStyle='#8a5c34';rrect(g,bx-12,by-22,24,10,2);g.fill();}
-else if(bd.id==='barracks'){g.fillStyle='#5a6e3a';rrect(g,bx-26,by-12,52,26,4);g.fill();g.fillStyle='#3a4a1a';rrect(g,bx-28,by-16,56,8,2);g.fill();}
-else if(bd.id==='lab'){g.fillStyle='#f4f8fc';rrect(g,bx-26,by-12,52,26,4);g.fill();g.fillStyle='#2a6ab0';rrect(g,bx-28,by-16,56,8,2);g.fill();}
-else if(bd.id==='well'){g.fillStyle='#86919c';ellipse(g,bx,by+2,20,8);g.fill();g.fillStyle='#4dabf7';ellipse(g,bx,by+2,14,5);g.fill();}else if(bd.id==='farmhouse'){g.fillStyle='#c98f57';rrect(g,bx-26,by-12,52,26,4);g.fill();g.fillStyle='#5a6e3a';g.beginPath();g.moveTo(bx-30,by-10);g.lineTo(bx,by-30);g.lineTo(bx+30,by-10);g.closePath();g.fill();}
-g.fillStyle='rgba(0,0,0,.6)';rrect(g,bx-30,by-46,60,14,4);g.fill();
-g.fillStyle='#ffd95c';g.font='bold 10px Tahoma';g.textAlign='center';g.fillText(bdef.n,bx,by-36);}
-var _dbg=window.drawBG;
-window.drawBG=function(){
-_dbg();
-if(!window.bgC)return;
-var g=bgC.getContext('2d'),i;
-var full=G&&SHOPIM&&HOUSEIM;
-if(full){
-/* 1) الأرضية فوق كل الرسم القديم (تختفي البقع والبيت الأزرق) */
-g.drawImage(G,0,0,WW*T,WH*T);
-/* طريق البوابة */
-g.fillStyle='#d9b98c';rrect(g,30*T,31.5*T,4*T,(WH-31)*T,6);g.fill();
-/* 2) عناصر اللعب فوق الأرضية */
-for(i=0;i<24;i++){var pp=plotPos(i);g.fillStyle='#8a6242';rrect(g,pp.x-21,pp.y-15,46,34,7);g.fill();g.fillStyle='rgba(255,255,255,.12)';rrect(g,pp.x-21,pp.y-15,46,7,7);g.fill();}
-for(i=0;i<DSLOTS.length;i++){var ds=DSLOTS[i];g.fillStyle='rgba(150,160,170,.5)';rrect(g,ds.x-19,ds.y-10,38,20,6);g.fill();}
-if(ST&&ST.buildings)for(i=0;i<ST.buildings.length;i++)drawPlayerBld(g,ST.buildings[i]);
-lbl(g,85*T,12*T,'قرية الناجين');lbl(g,15*T,55*T,'مدينة الفجر');lbl(g,55*T,70*T,'واحة الأمل');
-/* 3) المنزل يغطي البيت القديم بالكامل */
-var hx=HOUSE.x+HOUSE.w/2,hy=HOUSE.y+HOUSE.h+8;
-var hw=HOUSE.w+2.5*T,hh<script>
+<scribt>
 /* ═══ VISUALS-FINAL v2: أرضية أوضح + مغارة بدون شطرنج ═══ */
 (function(){'use strict';
 function vf(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
