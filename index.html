@@ -3296,5 +3296,68 @@ ctx.drawImage(VIG,0,0);};
 console.log('WF2 ✓');
 })();
 </script>
+<script>
+/* IMG-FINAL: صورك الحقيقية داخل اللعبة */
+(function(){'use strict';
+if(window.IMG_INIT)return;window.IMG_INIT=true;
+var st=document.createElement('style');st.textContent='#rbtn{display:none!important}#rouletteOv{display:none!important}';document.head.appendChild(st);
+window.openRoulette=function(){};
+var G=null,H=null,C=null,B=null,PC=null,missing=[],dn=0;
+function redraw(){if(window.ST&&window.drawBG)drawBG();}
+function d1(n,ok){dn++;if(!ok)missing.push(n);if(dn>=4&&missing.length)toast('⚠️ ارفع الملفات: '+missing.join('، '),'red');}
+/* حذف الخلفية (بيضاء/شطرنجية) بالغمر من الحواف */
+function clean(im){var w=im.naturalWidth,h=im.naturalHeight,c=document.createElement('canvas');c.width=w;c.height=h;var g=c.getContext('2d');g.drawImage(im,0,0);
+try{var d=g.getImageData(0,0,w,h),p=d.data,S=new Uint8Array(w*h),Q=[],x,y;
+function Bg(i){var r=p[i],gg=p[i+1],b=p[i+2],mn=r<gg?(r<b?r:b):(gg<b?gg:b),mx=r>gg?(r>b?r:b):(gg>b?gg:b);return mx-mn<30&&mn>120;}
+function P2(a,b){var id=b*w+a;if(S[id])return;if(!Bg(id*4))return;S[id]=1;Q.push(id);}
+for(x=0;x<w;x++){P2(x,0);P2(x,h-1);}for(y=0;y<h;y++){P2(0,y);P2(w-1,y);}
+while(Q.length){var id=Q.pop();p[id*4+3]=0;var xx=id%w,yy=(id-xx)/w;
+if(xx>0)P2(xx-1,yy);if(xx<w-1)P2(xx+1,yy);if(yy>0)P2(xx,yy-1);if(yy<h-1)P2(xx,yy+1);}
+g.putImageData(d,0,0);}catch(e){}return c;}
+function load(nm,cb){var im=new Image();im.onload=function(){cb(clean(im),true);};im.onerror=function(){cb(null,false);};im.src=nm;}
+load('ground.png',function(x,ok){G=x;d1('ground.png',ok);redraw();});
+load('house.png',function(x,ok){H=x;d1('house.png',ok);redraw();});
+load('cave.png',function(x,ok){C=x;d1('cave.png',ok);redraw();});
+load('boss.png',function(x,ok){B=x;d1('boss.png',ok);redraw();});
+function pat(g){if(!PC){PC=document.createElement('canvas');PC.width=768;PC.height=768;PC.getContext('2d').drawImage(G,0,0,768,768);}return g.createPattern(PC,'repeat');}
+function fit(g,img,bx,by,bw,bh){var r=img.naturalHeight/img.naturalWidth,w=bw,h=w*r;if(h>bh){h=bh;w=h/r;}g.drawImage(img,bx+(bw-w)/2,by+bh-h,w,h);}
+function cover(g,r){g.save();g.beginPath();g.rect(r.x,r.y,r.w,r.h);g.clip();g.fillStyle=G?pat(g):'#63a84e';g.fillRect(r.x,r.y,r.w,r.h);g.restore();}
+function lbl(g,x,y,t){g.font='bold 13px Tahoma';g.textAlign='center';var w=g.measureText(t).width+16;g.fillStyle='rgba(0,0,0,.6)';rrect(g,x-w/2,y-14,w,18,8);g.fill();g.fillStyle='#ffd95c';g.fillText(t,x,y);}
+var HR={x:HOUSE.x-18,y:HOUSE.y-20,w:HOUSE.w+36,h:HOUSE.h+38};
+var CR={x:88*T,y:55*T,w:14*T,h:8*T};
+var BR={x:53*T,y:0,w:14*T,h:8*T};
+var SR={x:SHOP.x-12,y:SHOP.y-10,w:SHOP.w+24,h:SHOP.h+26};
+var _dbg=window.drawBG;
+window.drawBG=function(){_dbg();if(!window.bgC)return;var g=bgC.getContext('2d'),i;
+if(G){
+/* الأرضية فوق كل العالم ما عدا منطقة المتجر (يبقى متجرك الأصلي) */
+g.save();g.beginPath();g.rect(0,0,WW*T,WH*T);g.rect(SR.x,SR.y,SR.w,SR.h);g.clip('evenodd');
+g.fillStyle=pat(g);g.fillRect(0,0,WW*T,WH*T);g.restore();
+/* إعادة رسم عناصر اللعب فوق الأرضية */
+g.fillStyle='#d9b98c';rrect(g,30*T,31.5*T,4*T,(WH-31)*T,6);g.fill();
+g.fillStyle='#d8c8a0';ellipse(g,12*T,33*T,3*T,2.2*T);g.fill();
+var wg=g.createRadialGradient(12*T,33*T,10,12*T,33*T,2.6*T);wg.addColorStop(0,'#6fc0e8');wg.addColorStop(1,'#2f6ea8');g.fillStyle=wg;ellipse(g,12*T,33*T,2.7*T,1.9*T);g.fill();
+g.fillStyle='#7a5638';rrect(g,49*T,16*T,14*T,22*T,10);g.fill();
+for(i=0;i<24;i++){var pp=plotPos(i);g.fillStyle='#8a6242';rrect(g,pp.x-21,pp.y-15,46,34,7);g.fill();}
+for(i=0;i<DSLOTS.length;i++){var ds=DSLOTS[i];g.fillStyle='rgba(150,160,170,.5)';rrect(g,ds.x-19,ds.y-10,38,20,6);g.fill();}
+if(ST&&ST.buildings)for(i=0;i<ST.buildings.length;i++){var b=ST.buildings[i];
+g.fillStyle='rgba(0,0,0,.25)';ellipse(g,b.x,b.y+14,24,7);g.fill();
+g.fillStyle='#8a5c34';rrect(g,b.x-24,b.y-14,48,28,4);g.fill();
+g.fillStyle='#c0392b';g.beginPath();g.moveTo(b.x-28,b.y-12);g.lineTo(b.x,b.y-30);g.lineTo(b.x+28,b.y-12);g.closePath();g.fill();
+var bd=BUILDINGS.filter(function(x){return x.id===b.id;})[0];
+g.fillStyle='rgba(0,0,0,.6)';rrect(g,b.x-30,b.y-46,60,14,4);g.fill();
+g.fillStyle='#ffd95c';g.font='bold 10px Tahoma';g.textAlign='center';g.fillText(bd?bd.n:'',b.x,b.y-36);}
+lbl(g,85*T,12*T,'قرية الناجين');lbl(g,15*T,55*T,'مدينة الفجر');lbl(g,55*T,70*T,'واحة الأمل');}
+/* المنزل: تغطية الرسم القديم ثم صورتك */
+cover(g,HR);if(H)fit(g,H,HR.x,HR.y-26,HR.w,HR.h+26);
+lbl(g,HOUSE.x+HOUSE.w/2,HR.y-34,'المنزل');
+/* المغارة: تغطية حصن الظلام ثم صورتك */
+cover(g,CR);if(C)fit(g,C,CR.x,CR.y,CR.w,CR.h);
+/* قلعة الزعيم شمالاً */
+cover(g,BR);if(B)fit(g,B,BR.x,BR.y,BR.w,BR.h);
+lbl(g,60*T,BR.h+16,'⚔️ بيت زعيم الزومبي');};
+console.log('IMG-FINAL ✓');
+})();
+</script>
 </body>
 </html>
