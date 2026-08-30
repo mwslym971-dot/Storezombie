@@ -3351,5 +3351,57 @@ lbl(g,bx,by-bh-10,'⚔️ زعيم الزومبي');}
 console.log('VISUALS-FINAL v2 ✓');});
 })();
 </script>
+<script>
+/* ═══ RES-SKIN: رسومات الموارد من صورة واحدة (منفصل بدون تضارب) ═══ */
+(function(){'use strict';
+if(window.RES_SKIN)return;window.RES_SKIN=true;
+var IMG=new Image(),OK=false,S={};
+IMG.onload=function(){var w=IMG.naturalWidth,h=IMG.naturalHeight;
+/* مربعات القص (نسب من أبعاد الصورة) */
+var B={
+treeF:[.02,.04,.245,.475],treeD:[.27,.08,.465,.51],
+rockF:[.50,.16,.65,.40],rockB:[.685,.175,.825,.40],rockP:[.845,.225,.975,.375],
+stump:[.065,.625,.215,.845],logs:[.29,.635,.435,.845],
+oreF:[.53,.615,.65,.85],oreD:[.69,.615,.795,.85],oreP:[.85,.655,.965,.85]};
+function cut(k){var b=B[k],c=document.createElement('canvas');
+c.width=Math.floor((b[2]-b[0])*w);c.height=Math.floor((b[3]-b[1])*h);
+c.getContext('2d').drawImage(IMG,Math.floor(b[0]*w),Math.floor(b[1]*h),c.width,c.height,0,0,c.width,c.height);
+return c;}
+for(var k in B)S[k]=cut(k);
+/* استبدال الرسوم العامة (الرسم الأصلي يستخدمها تلقائياً) */
+window.SPR_TREE=[S.treeF,S.treeD,S.treeD];
+window.SPR_ROCK=S.rockF;
+window.SPR_METAL=S.oreF;
+OK=true;
+if(window.toast)toast('🎨 رسومات الموارد الجديدة مفعلة!','gold');
+console.log('RES-SKIN ✓');};
+IMG.onerror=function(){console.warn('RES-SKIN: ضع ملف resources.png بجانب index.html');};
+IMG.src='resources.png';
+/* مراحل تلف الشجرة عبر مؤشر الرسم الموجود */
+setInterval(function(){if(!OK||!window.E)return;
+for(var i=0;i<E.nodes.length;i++){var n=E.nodes[i];
+if(n.type==='tree')n.v=(n.hp>=3)?0:1;}},120);
+/* رسم المراحل: متضرر + مقطوع/مستخرج */
+var _ren=window.render;
+window.render=function(){_ren();
+if(!OK||!window.ST||!window.E)return;
+var g=window.ctx||null;if(!g)return;
+for(var i=0;i<E.nodes.length;i++){var n=E.nodes[i];
+var nx=n.x-cam.x,ny=n.y-cam.y;
+if(nx<-120||nx>VW+120||ny<-140||ny>VH+80)continue;
+var sh=n.hitT>0?rnd(-2,2):0;
+if(n.hp<=0){
+/* مقطوع / مستنفد */
+if(n.type==='tree'){dB(g,S.stump,nx-40+sh,ny+20,70);dB(g,S.logs,nx+8+sh,ny+16,44);}
+else if(n.type==='rock'){dB(g,S.rockP,nx-34+sh,ny+16,46);}
+else if(n.type==='metal'){dB(g,S.oreP,nx-30+sh,ny+16,50);}}
+else if(n.hp<3){
+/* متضرر */
+if(n.type==='rock')dB(g,S.rockB,nx-36+sh,ny+16,60);
+else if(n.type==='metal')dB(g,S.oreD,nx-32+sh,ny+16,64);}}};
+/* رسم sprite بمثبت أسفل النقطة مع الحفاظ على النسبة */
+function dB(g,img,x,bottomY,h){var r=img.width/img.height,w=h*r;g.drawImage(img,x,bottomY-h,w,h);}
+})();
+</script>
 </body>
 </html>
