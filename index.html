@@ -3352,55 +3352,69 @@ console.log('VISUALS-FINAL v2 ✓');});
 })();
 </script>
 <script>
-/* ═══ RES-SKIN: رسومات الموارد من صورة واحدة (منفصل بدون تضارب) ═══ */
+/* ═══ RES-SKIN v2: حجم صحيح + حذف الشطرنج + تغطية الرسم القديم ═══ */
 (function(){'use strict';
-if(window.RES_SKIN)return;window.RES_SKIN=true;
-var IMG=new Image(),OK=false,S={};
-IMG.onload=function(){var w=IMG.naturalWidth,h=IMG.naturalHeight;
-/* مربعات القص (نسب من أبعاد الصورة) */
+if(window.RES_SKIN2)return;window.RES_SKIN2=true;
+var IMG=new Image();
+IMG.onload=function(){
+var w=IMG.naturalWidth,h=IMG.naturalHeight;
 var B={
 treeF:[.02,.04,.245,.475],treeD:[.27,.08,.465,.51],
 rockF:[.50,.16,.65,.40],rockB:[.685,.175,.825,.40],rockP:[.845,.225,.975,.375],
 stump:[.065,.625,.215,.845],logs:[.29,.635,.435,.845],
 oreF:[.53,.615,.65,.85],oreD:[.69,.615,.795,.85],oreP:[.85,.655,.965,.85]};
-function cut(k){var b=B[k],c=document.createElement('canvas');
-c.width=Math.floor((b[2]-b[0])*w);c.height=Math.floor((b[3]-b[1])*h);
-c.getContext('2d').drawImage(IMG,Math.floor(b[0]*w),Math.floor(b[1]*h),c.width,c.height,0,0,c.width,c.height);
+function slice(k){var b=B[k];
+var sx=Math.floor(b[0]*w),sy=Math.floor(b[1]*h),sw=Math.floor((b[2]-b[0])*w),sh=Math.floor((b[3]-b[1])*h);
+var c=document.createElement('canvas');c.width=sw;c.height=sh;
+var g=c.getContext('2d');g.drawImage(IMG,sx,sy,sw,sh,0,0,sw,sh);
+/* حذف الشطرنج/الأبيض المتصل بالحواف فقط */
+try{var d=g.getImageData(0,0,sw,sh),p=d.data,seen=new Uint8Array(sw*sh),q=[],x,y;
+function isBG(i){var r=p[i],gg=p[i+1],b2=p[i+2];
+var mn=Math.min(r,gg,b2),mx=Math.max(r,gg,b2);
+return (mx-mn)<12&&mn>150;}
+function push(x2,y2){var id=y2*sw+x2;if(seen[id])return;if(!isBG(id*4))return;seen[id]=1;q.push(id);}
+for(x=0;x<sw;x++){push(x,0);push(x,sh-1);}
+for(y=0;y<sh;y++){push(0,y);push(sw-1,y);}
+while(q.length){var id=q.pop();p[id*4+3]=0;var xx=id%sw,yy=(id-xx)/sw;
+if(xx>0)push(xx-1,yy);if(xx<sw-1)push(xx+1,yy);
+if(yy>0)push(xx,yy-1);if(yy<sh-1)push(xx,yy+1);}
+g.putImageData(d,0,0);}catch(e){}
 return c;}
-for(var k in B)S[k]=cut(k);
-/* استبدال الرسوم العامة (الرسم الأصلي يستخدمها تلقائياً) */
-window.SPR_TREE=[S.treeF,S.treeD,S.treeD];
-window.SPR_ROCK=S.rockF;
-window.SPR_METAL=S.oreF;
-OK=true;
-if(window.toast)toast('🎨 رسومات الموارد الجديدة مفعلة!','gold');
-console.log('RES-SKIN ✓');};
-IMG.onerror=function(){console.warn('RES-SKIN: ضع ملف resources.png بجانب index.html');};
+/* تصغير إلى مقاس الرسم الأصلي ليغطي القديم بالضبط */
+function fitTo(k,tw,th){var s=slice(k);var c=document.createElement('canvas');c.width=tw;c.height=th;
+var g=c.getContext('2d');var r=s.width/s.height,tr=tw/th,dw,dh;
+if(r>tr){dh=th;dw=th*r;}else{dw=tw;dh=tw/r;}
+g.drawImage(s,(tw-dw)/2,(th-dh)/2,dw,dh);return c;}
+window.SPR_TREE=[fitTo('treeF',96,116),fitTo('treeD',96,116),fitTo('treeD',96,116)];
+window.SPR_ROCK=fitTo('rockF',72,56);
+window.SPR_METAL=fitTo('oreF',64,60);
+window.RES_STAGE={stump:fitTo('stump',64,64),logs:fitTo('logs',64,64),
+rockB:fitTo('rockB',72,56),rockP:fitTo('rockP',72,56),
+oreD:fitTo('oreD',64,60),oreP:fitTo('oreP',64,60)};
+if(window.toast)toast('🎨 موارد: حجم صحيح + بدون خلفية!','gold');
+console.log('RES-SKIN v2 ✓');};
+IMG.onerror=function(){console.warn('RES-SKIN: ارفع resources.png بجانب index.html');};
 IMG.src='resources.png';
-/* مراحل تلف الشجرة عبر مؤشر الرسم الموجود */
-setInterval(function(){if(!OK||!window.E)return;
+/* مراحل الشجرة عبر مؤشر الرسم الأصلي */
+setInterval(function(){if(!window.E)return;
 for(var i=0;i<E.nodes.length;i++){var n=E.nodes[i];
-if(n.type==='tree')n.v=(n.hp>=3)?0:1;}},120);
-/* رسم المراحل: متضرر + مقطوع/مستخرج */
+if(n.type==='tree')n.v=(n.hp>=3)?0:1;}},150);
+/* رسم المراحل (متضرر/مستنفد) بنفس المقاسات الأصلية */
 var _ren=window.render;
 window.render=function(){_ren();
-if(!OK||!window.ST||!window.E)return;
-var g=window.ctx||null;if(!g)return;
+if(!window.RES_STAGE||!window.ST||!window.E)return;
+var g=window.ctx;if(!g)return;
 for(var i=0;i<E.nodes.length;i++){var n=E.nodes[i];
 var nx=n.x-cam.x,ny=n.y-cam.y;
 if(nx<-120||nx>VW+120||ny<-140||ny>VH+80)continue;
 var sh=n.hitT>0?rnd(-2,2):0;
 if(n.hp<=0){
-/* مقطوع / مستنفد */
-if(n.type==='tree'){dB(g,S.stump,nx-40+sh,ny+20,70);dB(g,S.logs,nx+8+sh,ny+16,44);}
-else if(n.type==='rock'){dB(g,S.rockP,nx-34+sh,ny+16,46);}
-else if(n.type==='metal'){dB(g,S.oreP,nx-30+sh,ny+16,50);}}
+if(n.type==='tree'){g.drawImage(RES_STAGE.stump,nx-32+sh,ny-44,64,64);g.drawImage(RES_STAGE.logs,nx+6+sh,ny-24,40,40);}
+else if(n.type==='rock')g.drawImage(RES_STAGE.rockP,nx-36+sh,ny-40,72,56);
+else if(n.type==='metal')g.drawImage(RES_STAGE.oreP,nx-32+sh,ny-44,64,60);}
 else if(n.hp<3){
-/* متضرر */
-if(n.type==='rock')dB(g,S.rockB,nx-36+sh,ny+16,60);
-else if(n.type==='metal')dB(g,S.oreD,nx-32+sh,ny+16,64);}}};
-/* رسم sprite بمثبت أسفل النقطة مع الحفاظ على النسبة */
-function dB(g,img,x,bottomY,h){var r=img.width/img.height,w=h*r;g.drawImage(img,x,bottomY-h,w,h);}
+if(n.type==='rock')g.drawImage(RES_STAGE.rockB,nx-36+sh,ny-40,72,56);
+else if(n.type==='metal')g.drawImage(RES_STAGE.oreD,nx-32+sh,ny-44,64,60);}}};
 })();
 </script>
 </body>
