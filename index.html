@@ -3206,91 +3206,110 @@ console.log('PROGRESS-GUARD ✓');
 })();
 </script>
 <script>
-/* ═══ VISUAL-FINAL: الرسومات النهائية بدون خلفيات ═══ */
+/* ═══ WORLD+SUN RTX: مباني ظاهرة دائماً + إضاءة شمس سينمائية ═══ */
 (function(){'use strict';
-function vf(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
-vf(function(){
-if(!window.drawBG||window.VIS_FINAL)return;window.VIS_FINAL=true;
-var G=null,HIM=null,SIM=null,CIM=null,BIM=null,PC=null;
+function ws(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+ws(function(){
+if(!window.drawBG||window.WS_INIT)return;window.WS_INIT=true;
+var HIM=null,CIM=null,BIM=null;
 function redraw(){if(window.ST&&window.drawBG)drawBG();}
 function load(src,cb){var im=new Image();im.onload=function(){cb(im);};im.onerror=function(){cb(null);};im.src=src;}
-/* حذف أي خلفية فاتحة (أبيض/شطرنجي) متصلة بحواف الصورة */
-function clean(img){var w=img.naturalWidth,h=img.naturalHeight;
-var c=document.createElement('canvas');c.width=w;c.height=h;
-var g=c.getContext('2d');g.drawImage(img,0,0);
-try{var d=g.getImageData(0,0,w,h),p=d.data,seen=new Uint8Array(w*h),q=[],x,y;
-function bgi(i){var r=p[i],gg=p[i+1],b=p[i+2];
-var mn=r<gg?(r<b?r:b):(gg<b?gg:b),mx=r>gg?(r>b?r:b):(gg>b?gg:b);
-return (mx-mn)<30&&mn>120;}
-function push(xx,yy){var idx=yy*w+xx;if(seen[idx])return;if(!bgi(idx*4))return;seen[idx]=1;q.push(idx);}
-for(x=0;x<w;x++){push(x,0);push(x,h-1);}
-for(y=0;y<h;y++){push(0,y);push(w-1,y);}
-while(q.length){var idx=q.pop();p[idx*4+3]=0;
-var xx=idx%w,yy=(idx-xx)/w;
-if(xx>0)push(xx-1,yy);if(xx<w-1)push(xx+1,yy);
-if(yy>0)push(xx,yy-1);if(yy<h-1)push(xx,yy+1);}
-g.putImageData(d,0,0);}catch(e){}
-return c;}
-load('ground.png',function(x){G=x;redraw();});
-load('shop.png',function(x){SIM=x;redraw();});
-load('house.png',function(x){HIM=x?clean(x):null;redraw();});
-load('cave.png',function(x){CIM=x?clean(x):null;redraw();});
-load('boss.png',function(x){BIM=x?clean(x):null;redraw();});
-function pat(g){if(!PC){PC=document.createElement('canvas');PC.width=768;PC.height=768;PC.getContext('2d').drawImage(G,0,0,768,768);}return g.createPattern(PC,'repeat');}
-var HR={x:HOUSE.x-16,y:HOUSE.y-18,w:HOUSE.w+32,h:HOUSE.h+34};
-var SR={x:SHOP.x-16,y:SHOP.y-12,w:SHOP.w+32,h:SHOP.h+24};
-var CR={x:88*T,y:56*T,w:14*T,h:7*T};
-var BR={x:53*T,y:0,w:14*T,h:7.5*T};
-function cover(g,r){g.save();g.beginPath();g.rect(r.x,r.y,r.w,r.h);g.clip();
-g.fillStyle=G?pat(g):'#63a84e';g.fillRect(r.x,r.y,r.w,r.h);g.restore();}
-function fit(g,img,bx,by,bw,bh){var r=img.naturalHeight/img.naturalWidth;var w=bw,h=w*r;if(h>bh){h=bh;w=h/r;}
-g.drawImage(img,bx+(bw-w)/2,by+bh-h,w,h);}
-function lbl(g,x,y,t){g.font='bold 13px Tahoma';g.textAlign='center';var w=g.measureText(t).width+16;
-g.fillStyle='rgba(0,0,0,.6)';rrect(g,x-w/2,y-14,w,18,8);g.fill();g.fillStyle='#ffd95c';g.fillText(t,x,y);}
-function drawPB(g,bd){var bx=bd.x,by=bd.y,bdef=null,j;
-for(j=0;j<BUILDINGS.length;j++)if(BUILDINGS[j].id===bd.id)bdef=BUILDINGS[j];if(!bdef)return;
-g.fillStyle='rgba(0,0,0,.25)';ellipse(g,bx,by+14,24,7);g.fill();
-g.fillStyle='#8a5c34';rrect(g,bx-24,by-14,48,28,4);g.fill();
-g.fillStyle=bd.id==='house2'?'#c0392b':bd.id==='barracks'?'#3a4a1a':bd.id==='lab'?'#2a6ab0':'#5a3a1a';
-g.beginPath();g.moveTo(bx-28,by-12);g.lineTo(bx,by-30);g.lineTo(bx+28,by-12);g.closePath();g.fill();
-g.fillStyle='rgba(0,0,0,.6)';rrect(g,bx-30,by-46,60,14,4);g.fill();
-g.fillStyle='#ffd95c';g.font='bold 10px Tahoma';g.textAlign='center';g.fillText(bdef.n,bx,by-36);}
+load('house.png',function(x){HIM=x;redraw();});
+load('cave.png',function(x){CIM=x;redraw();});
+load('boss.png',function(x){BIM=x;redraw();});
+function fit(g,img,bx,by,bw,bh){var r=img.naturalHeight/img.naturalWidth;var w=bw,h=w*r;if(h>bh){h=bh;w=h/r;}g.drawImage(img,bx+(bw-w)/2,by+bh-h,w,h);}
+function lbl(g,x,y,t){g.font='bold 13px Tahoma';g.textAlign='center';var w=g.measureText(t).width+16;g.fillStyle='rgba(0,0,0,.6)';rrect(g,x-w/2,y-14,w,18,8);g.fill();g.fillStyle='#ffd95c';g.fillText(t,x,y);}
+/* ── رسومات احتياطية (تظهر دائماً حتى بدون ملفات الصور) ── */
+function artHouse(g,x,y,w,h){
+g.fillStyle='rgba(0,0,0,.25)';ellipse(g,x+w/2,y+h-4,w*.55,10);g.fill();
+g.fillStyle='#f2e8d4';rrect(g,x+w*.12,y+h*.34,w*.76,h*.62,4);g.fill();
+g.fillStyle='#8a5a34';g.beginPath();g.moveTo(x+w*.02,y+h*.4);g.lineTo(x+w*.5,y+h*.02);g.lineTo(x+w*.98,y+h*.4);g.closePath();g.fill();
+g.strokeStyle='#6e4526';g.lineWidth=3;g.stroke();
+g.fillStyle='#b0713d';rrect(g,x+w*.68,y+h*.08,w*.08,h*.16,2);g.fill();
+g.fillStyle='rgba(230,230,230,.7)';ellipse(g,x+w*.72,y+h*.02,6,5);g.fill();ellipse(g,x+w*.76,y-h*.04,8,6);g.fill();
+g.fillStyle='#2a5aa0';rrect(g,x+w*.44,y+h*.62,w*.12,h*.34,3);g.fill();
+g.fillStyle='#ffd95c';ellipse(g,x+w*.545,y+h*.8,2,2);g.fill();
+function win(wx2,wy2){g.fillStyle='#22304a';rrect(g,wx2-4,wy2,18,16,2);g.fill();g.fillStyle='#bcd6ee';rrect(g,wx2,wy2+2,10,12,1);g.fill();g.fillStyle='#3a5a8a';rrect(g,wx2-7,wy2,4,16,1);g.fill();rrect(g,wx2+13,wy2,4,16,1);g.fill();g.fillStyle='#e04848';ellipse(g,wx2+2,wy2+18,2,2);g.fill();ellipse(g,wx2+8,wy2+18,2,2);g.fill();}
+win(x+w*.2,y+h*.5);win(x+w*.62,y+h*.5);
+g.fillStyle='#3fae57';ellipse(g,x+w*.1,y+h*.95,10,6);g.fill();ellipse(g,x+w*.9,y+h*.95,10,6);g.fill();
+g.fillStyle='#ff8ab0';ellipse(g,x+w*.08,y+h*.9,2.5,2.5);g.fill();ellipse(g,x+w*.92,y+h*.9,2.5,2.5);g.fill();
+g.fillStyle='#c9b08a';ellipse(g,x+w*.5,y+h+4,16,6);g.fill();ellipse(g,x+w*.5,y+h+14,20,7);g.fill();}
+function artCave(g,x,y,w,h){
+g.fillStyle='rgba(0,0,0,.3)';ellipse(g,x+w/2,y+h-4,w*.55,12);g.fill();
+g.fillStyle='#4a4a4a';g.beginPath();g.moveTo(x,y+h);g.quadraticCurveTo(x+w*.1,y+h*.1,x+w*.5,y+h*.05);g.quadraticCurveTo(x+w*.9,y+h*.12,x+w,y+h);g.closePath();g.fill();
+g.fillStyle='#5a5a5a';ellipse(g,x+w*.25,y+h*.4,30,24);g.fill();ellipse(g,x+w*.75,y+h*.45,34,26);g.fill();
+var eg=g.createRadialGradient(x+w/2,y+h*.62,10,x+w/2,y+h*.62,w*.28);eg.addColorStop(0,'#000');eg.addColorStop(1,'#1a2a1a');
+g.fillStyle=eg;g.beginPath();g.ellipse(x+w/2,y+h*.62,w*.24,h*.34,0,0,7);g.fill();
+g.save();g.shadowColor='#57c47c';g.shadowBlur=25;g.fillStyle='rgba(87,196,124,.35)';g.beginPath();g.ellipse(x+w/2,y+h*.72,w*.2,h*.18,0,0,7);g.fill();g.restore();
+g.fillStyle='#3a3a3a';for(var i=0;i<5;i++){var sx2=x+w*.32+i*w*.09;g.beginPath();g.moveTo(sx2,y+h*.34);g.lineTo(sx2+6,y+h*.34);g.lineTo(sx2+3,y+h*.5);g.closePath();g.fill();}
+function skull(kx,ky){g.fillStyle='#e8e8e8';ellipse(g,kx,ky,6,5);g.fill();g.fillStyle='#2a2a2a';ellipse(g,kx-2,ky-1,1.5,1.5);g.fill();ellipse(g,kx+2,ky-1,1.5,1.5);g.fill();}
+skull(x+w*.18,y+h*.85);skull(x+w*.8,y+h*.8);skull(x+w*.72,y+h*.3);
+g.fillStyle='#8a6a42';rrect(g,x+w*.3,y+h*.1,w*.4,h*.16,3);g.fill();
+g.fillStyle='#3a2a1a';g.font='bold '+Math.floor(h*.09)+'px Tahoma';g.textAlign='center';g.fillText('مغارة الزومبي',x+w/2,y+h*.22);
+g.strokeStyle='#3f7a30';g.lineWidth=3;g.beginPath();g.moveTo(x+w*.15,y+h*.2);g.quadraticCurveTo(x+w*.12,y+h*.5,x+w*.18,y+h*.7);g.stroke();}
+function artBoss(g,x,y,w,h){
+g.fillStyle='rgba(0,0,0,.4)';ellipse(g,x+w/2,y+h-4,w*.55,12);g.fill();
+g.fillStyle='#2a2a3a';rrect(g,x+w*.05,y+h*.55,w*.9,h*.42,6);g.fill();
+function tw(tx2,th2){g.fillStyle='#3a3a4e';rrect(g,tx2,y+h*.55-th2,w*.08,th2,3);g.fill();
+g.fillStyle='#4a4a5e';for(var i=0;i<3;i++)g.fillRect(tx2+i*w*.028,y+h*.55-th2-6,w*.02,6);
+g.save();g.shadowColor='#4dabf7';g.shadowBlur=18;g.fillStyle='#6fc0e8';g.beginPath();g.moveTo(tx2+w*.01,y+h*.55-th2-8);g.quadraticCurveTo(tx2+w*.04,y+h*.55-th2-26,tx2+w*.07,y+h*.55-th2-8);g.closePath();g.fill();g.restore();}
+tw(x+w*.08,h*.3);tw(x+w*.84,h*.3);tw(x+w*.28,h*.42);tw(x+w*.64,h*.42);
+g.fillStyle='#1a1a2a';rrect(g,x+w*.42,y+h*.6,w*.16,h*.37,4);g.fill();g.save();g.shadowColor='#4dabf7';g.shadowBlur=15;g.fillStyle='#4dabf7';rrect(g,x+w*.45,y+h*.68,w*.1,h*.28,3);g.fill();g.restore();
+g.fillStyle='#9fb0c0';ellipse(g,x+w*.5,y+h*.32,w*.09,w*.07);g.fill();
+g.save();g.shadowColor='#4dabf7';g.shadowBlur=12;g.fillStyle='#4dabf7';ellipse(g,x+w*.47,y+h*.3,3.5,3.5);g.fill();ellipse(g,x+w*.53,y+h*.3,3.5,3.5);g.fill();g.restore();
+g.fillStyle='#ffd95c';for(var c=0;c<5;c++){g.beginPath();g.moveTo(x+w*.42+c*w*.04,y+h*.24);g.lineTo(x+w*.44+c*w*.04,y+h*.16);g.lineTo(x+w*.46+c*w*.04,y+h*.24);g.closePath();g.fill();}
+g.strokeStyle='#c9a227';g.lineWidth=4;g.beginPath();g.moveTo(x+w*.42,y+h*.34);g.quadraticCurveTo(x+w*.34,y+h*.28,x+w*.36,y+h*.2);g.moveTo(x+w*.58,y+h*.34);g.quadraticCurveTo(x+w*.66,y+h*.28,x+w*.64,y+h*.2);g.stroke();
+g.fillStyle='#c0392b';rrect(g,x+w*.2,y+h*.6,w*.06,h*.2,2);g.fill();rrect(g,x+w*.74,y+h*.6,w*.06,h*.2,2);g.fill();}
+/* ── لف drawBG: رسم المباني الثلاثة فوق كل شيء ── */
 var _dbg=window.drawBG;
-window.drawBG=function(){
-_dbg();
-if(!window.bgC)return;
-var g=bgC.getContext('2d'),i;
-if(G){
-/* بلاط العشب على العالم مع استثناء المتجر/المنزل إن لم تُحمَّل صورهما */
-g.save();g.beginPath();g.rect(0,0,WW*T,WH*T);
-if(!SIM)g.rect(SR.x,SR.y,SR.w,SR.h);
-if(!HIM)g.rect(HR.x,HR.y,HR.w,HR.h);
-g.clip('evenodd');
-g.fillStyle=pat(g);g.fillRect(0,0,WW*T,WH*T);
-g.restore();
-/* عناصر اللعب فوق العشب */
-g.fillStyle='rgba(15,25,18,.55)';g.fillRect(0,0,WW*T,4*T);
-g.fillStyle='#d9b98c';rrect(g,30*T,31.5*T,4*T,(WH-31)*T,6);g.fill();
-g.fillStyle='#7a5638';rrect(g,49*T,16*T,14*T,22*T,10);g.fill();
-for(i=0;i<24;i++){var pp=plotPos(i);g.fillStyle='#8a6242';rrect(g,pp.x-21,pp.y-15,46,34,7);g.fill();}
-for(i=0;i<DSLOTS.length;i++){var ds=DSLOTS[i];g.fillStyle='rgba(150,160,170,.5)';rrect(g,ds.x-19,ds.y-10,38,20,6);g.fill();}
-if(ST&&ST.buildings)for(i=0;i<ST.buildings.length;i++)drawPB(g,ST.buildings[i]);
-lbl(g,85*T,12*T,'قرية الناجين');lbl(g,15*T,55*T,'مدينة الفجر');lbl(g,55*T,70*T,'واحة الأمل');}
-/* المنزل فوق تغطية كاملة (لا يبرز القديم) */
-if(HIM){cover(g,HR);fit(g,HIM,HR.x,HR.y-26,HR.w,HR.h+26);lbl(g,HOUSE.x+HOUSE.w/2,HR.y-34,'المنزل');}
-/* المتجر */
-if(SIM){cover(g,SR);fit(g,SIM,SR.x,SR.y-30,SR.w,SR.h+30);
-if(ST){g.font='bold 14px Tahoma';g.textAlign='center';
-var nm='متجر '+ST.name,tw=g.measureText(nm).width+20;
-g.fillStyle='rgba(0,0,0,.65)';rrect(g,SR.x+SR.w/2-tw/2,SR.y-52,tw,20,9);g.fill();
-g.strokeStyle='#ffd95c';g.lineWidth=1.2;rrect(g,SR.x+SR.w/2-tw/2,SR.y-52,tw,20,9);g.stroke();
-g.fillStyle='#ffd95c';g.fillText(nm,SR.x+SR.w/2,SR.y-37);}}
-/* المغارة (خلفيتها تُحذف تلقائياً) */
-if(CIM){cover(g,CR);fit(g,CIM,CR.x,CR.y,CR.w,CR.h);}
-/* قلعة الزعيم */
-if(BIM){cover(g,BR);fit(g,BIM,BR.x,BR.y,BR.w,BR.h);lbl(g,60*T,BR.y-8,'⚔️ زعيم الزومبي');}
-};
-console.log('VISUAL-FINAL ✓');
+window.drawBG=function(){_dbg();if(!window.bgC)return;var g=bgC.getContext('2d');
+var HR={x:HOUSE.x-16,y:HOUSE.y-18,w:HOUSE.w+32,h:HOUSE.h+34};
+g.save();g.beginPath();g.rect(HR.x,HR.y,HR.w,HR.h);g.clip();g.fillStyle='#a8b077';g.fillRect(HR.x,HR.y,HR.w,HR.h);g.restore();
+if(HIM)fit(g,HIM,HR.x,HR.y,HR.w,HR.h);else artHouse(g,HR.x,HR.y,HR.w,HR.h);
+lbl(g,HOUSE.x+HOUSE.w/2,HR.y-6,'المنزل');
+var CR={x:88*T,y:56*T,w:14*T,h:7*T};
+g.save();g.beginPath();g.rect(CR.x,CR.y,CR.w,CR.h);g.clip();g.fillStyle='#5d9448';g.fillRect(CR.x,CR.y,CR.w,CR.h);g.restore();
+if(CIM)fit(g,CIM,CR.x,CR.y,CR.w,CR.h);else artCave(g,CR.x,CR.y,CR.w,CR.h);
+var BR={x:53*T,y:0,w:14*T,h:7.5*T};
+g.save();g.beginPath();g.rect(BR.x,BR.y,BR.w,BR.h);g.clip();g.fillStyle='#4a6a40';g.fillRect(BR.x,BR.y,BR.w,BR.h);g.restore();
+if(BIM)fit(g,BIM,BR.x,BR.y,BR.w,BR.h);else artBoss(g,BR.x,BR.y,BR.w,BR.h);
+lbl(g,60*T,BR.y+BR.h+16,'⚔️ بيت زعيم الزومبي');};
+/* ── إضاءة شمس RTX ── */
+function sunOverlay(){if(!window.ST)return;var t=ST.dayT;
+var p=clamp((t-0.05)/0.73,0,1);var D=Math.sin(Math.PI*p);if(D<=0.03)return;
+var sx=VW*p,sy=VH*0.9-Math.sin(Math.PI*p)*(VH*0.75);
+var warm=(p<0.22||p>0.78);
+ctx.save();ctx.globalCompositeOperation='overlay';
+var gr=ctx.createRadialGradient(sx,sy,50,sx,sy,Math.max(VW,VH));
+gr.addColorStop(0,warm?'rgba(255,160,70,'+(0.4*D)+')':'rgba(255,235,170,'+(0.3*D)+')');
+gr.addColorStop(1,'rgba(255,200,120,0)');
+ctx.fillStyle=gr;ctx.fillRect(0,0,VW,VH);ctx.restore();
+/* أشعة God-Rays دوّارة */
+ctx.save();ctx.globalCompositeOperation='screen';ctx.translate(sx,sy);ctx.rotate(perf/4000);
+for(var i=0;i<7;i++){ctx.rotate(Math.PI*2/7);
+var rg=ctx.createLinearGradient(0,0,360,0);
+rg.addColorStop(0,'rgba(255,240,190,'+(0.10*D)+')');rg.addColorStop(1,'rgba(255,240,190,0)');
+ctx.fillStyle=rg;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(360,-26);ctx.lineTo(360,26);ctx.closePath();ctx.fill();}
+ctx.restore();
+/* قرص الشمس متوهج */
+ctx.save();ctx.globalCompositeOperation='screen';ctx.shadowColor='#ffd95c';ctx.shadowBlur=45;
+ctx.fillStyle='rgba(255,240,180,'+(0.85*D)+')';ctx.beginPath();ctx.arc(sx,sy,26,0,7);ctx.fill();ctx.restore();
+/* عدسات Flare */
+ctx.save();ctx.globalCompositeOperation='screen';
+var cx=VW/2,cy=VH/2;
+for(var f=1;f<=4;f++){var fx=sx+(cx-sx)*f*0.35,fy=sy+(cy-sy)*f*0.35;
+ctx.fillStyle='rgba(255,220,150,'+(0.05*D)+')';ctx.beginPath();ctx.arc(fx,fy,16+f*10,0,7);ctx.fill();}
+ctx.restore();
+/* بقع ضوء متحركة (دَخل الشمس عبر الأوراق) */
+ctx.save();ctx.globalCompositeOperation='screen';
+for(var d2=0;d2<5;d2++){var dx=((perf/30+d2*260)%(VW+300))-150;
+var dy=VH*0.25+((d2*173)%Math.max(1,Math.floor(VH*0.5)));var dg=ctx.createRadialGradient(dx,dy,5,dx,dy,90);
+dg.addColorStop(0,'rgba(255,245,200,'+(0.06*D)+')');dg.addColorStop(1,'rgba(255,245,200,0)');
+ctx.fillStyle=dg;ctx.beginPath();ctx.arc(dx,dy,90,0,7);ctx.fill();}
+ctx.restore();}
+var _ren=window.render;
+window.render=function(){_ren();try{sunOverlay();}catch(e){}};
+console.log('WORLD+SUN RTX ✓');
 });
 })();
 </script>
