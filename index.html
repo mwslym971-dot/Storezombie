@@ -3206,13 +3206,13 @@ console.log('PROGRESS-GUARD ✓');
 })();
 </script>
 <script>
-/* ═══ SHOP-IMAGE: استبدال رسمة المتجر بالصورة الحقيقية ═══ */
+/* ═══ SHOP-IMAGE V2: صورة كبيرة تغطي المتجر الأصلي ═══ */
 (function(){'use strict';
-function si(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
-si(function(){
+function si2(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+si2(function(){
 if(!window.drawBG)return;
 var IMG=new Image();
-IMG.src='shop.png'; /* ← اسم ملف الصورة بجانب index.html */
+IMG.src='shop.png';
 var ready=false;
 IMG.onload=function(){ready=true;try{if(window.ST)drawBG();}catch(e){}};
 var _dbg=window.drawBG;
@@ -3220,30 +3220,35 @@ window.drawBG=function(){
 _dbg();
 if(!ready||!window.bgC||!IMG.naturalWidth)return;
 var g=bgC.getContext('2d');
-/* الحجم والموضع: أعرض قليلاً من المتجر القديم ومثبّت على الأرضية */
-var w=9.5*T;
+/* 1) مسح رسمة المتجر الأصلي بالكامل */
+var ex=SHOP.x-14,ey=SHOP.y-10,ew=SHOP.w+28,eh=SHOP.h+22;
+g.fillStyle='#a8b077';g.fillRect(ex,ey,ew,eh);
+g.strokeStyle='rgba(30,90,30,.25)';g.lineWidth=1.2;
+for(var i=0;i<70;i++){var gx=ex+Math.random()*ew,gy=ey+Math.random()*eh;
+g.beginPath();g.moveTo(gx,gy);g.lineTo(gx+Math.random()*3-1.5,gy-Math.random()*5);g.stroke();}
+/* 2) رسم الصورة بحجم كبير (يتكيف مع أبعاد الصورة تلقائياً) */
+var w=11.5*T;
 var h=w*(IMG.naturalHeight/IMG.naturalWidth);
+var maxH=SHOP.h+9*T;
+if(h>maxH){h=maxH;w=h*(IMG.naturalWidth/IMG.naturalHeight);}
 var cx=SHOP.x+SHOP.w/2;
-var baseY=SHOP.y+SHOP.h+6;
-/* ظل أرضي ناعم */
+var baseY=SHOP.y+SHOP.h+8;
 g.save();
 g.fillStyle='rgba(0,0,0,.28)';
-ellipse(g,cx,baseY-4,w*.52,14);g.fill();
-/* الصورة */
-g.shadowColor='rgba(0,0,0,.3)';g.shadowBlur=14;g.shadowOffsetY=5;
+ellipse(g,cx,baseY-4,w*.5,12);g.fill();
+g.shadowColor='rgba(0,0,0,.3)';g.shadowBlur=12;g.shadowOffsetY=4;
 g.drawImage(IMG,cx-w/2,baseY-h,w,h);
 g.restore();
-/* لافتة اسم اللاعب فوق السطح */
+/* 3) لافتة اسم اللاعب فوق السطح */
 var nm=(window.ST&&ST.name)?('متجر '+ST.name):'';
-if(nm){g.font='bold 13px Tahoma';g.textAlign='center';
-var tw=g.measureText(nm).width+18;
-g.fillStyle='rgba(0,0,0,.62)';
-rrect(g,cx-tw/2,baseY-h-20,tw,20,9);g.fill();
-g.strokeStyle='#ffd95c';g.lineWidth=1;
-rrect(g,cx-tw/2,baseY-h-20,tw,20,9);g.stroke();
-g.fillStyle='#ffd95c';g.fillText(nm,cx,baseY-h-6);}
+if(nm){g.font='bold 14px Tahoma';g.textAlign='center';
+var tw=g.measureText(nm).width+20;
+var rx=cx-tw/2,ry=baseY-h-22;
+g.fillStyle='rgba(0,0,0,.65)';rrect(g,rx,ry,tw,20,8);g.fill();
+g.strokeStyle='#ffd95c';g.lineWidth=1.2;rrect(g,rx,ry,tw,20,8);g.stroke();
+g.fillStyle='#ffd95c';g.fillText(nm,cx,ry+15);}
 };
-console.log('SHOP-IMAGE ✓');
+console.log('SHOP-IMAGE V2 ✓');
 });
 })();
 </script>
