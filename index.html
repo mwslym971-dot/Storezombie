@@ -3205,5 +3205,47 @@ console.log('PROGRESS-GUARD ✓');
 });
 })();
 </script>
+<script>
+/* ═══ SHOP-IMAGE: استبدال رسمة المتجر بالصورة الحقيقية ═══ */
+(function(){'use strict';
+function si(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+si(function(){
+if(!window.drawBG)return;
+var IMG=new Image();
+IMG.src='shop.png'; /* ← اسم ملف الصورة بجانب index.html */
+var ready=false;
+IMG.onload=function(){ready=true;try{if(window.ST)drawBG();}catch(e){}};
+var _dbg=window.drawBG;
+window.drawBG=function(){
+_dbg();
+if(!ready||!window.bgC||!IMG.naturalWidth)return;
+var g=bgC.getContext('2d');
+/* الحجم والموضع: أعرض قليلاً من المتجر القديم ومثبّت على الأرضية */
+var w=9.5*T;
+var h=w*(IMG.naturalHeight/IMG.naturalWidth);
+var cx=SHOP.x+SHOP.w/2;
+var baseY=SHOP.y+SHOP.h+6;
+/* ظل أرضي ناعم */
+g.save();
+g.fillStyle='rgba(0,0,0,.28)';
+ellipse(g,cx,baseY-4,w*.52,14);g.fill();
+/* الصورة */
+g.shadowColor='rgba(0,0,0,.3)';g.shadowBlur=14;g.shadowOffsetY=5;
+g.drawImage(IMG,cx-w/2,baseY-h,w,h);
+g.restore();
+/* لافتة اسم اللاعب فوق السطح */
+var nm=(window.ST&&ST.name)?('متجر '+ST.name):'';
+if(nm){g.font='bold 13px Tahoma';g.textAlign='center';
+var tw=g.measureText(nm).width+18;
+g.fillStyle='rgba(0,0,0,.62)';
+rrect(g,cx-tw/2,baseY-h-20,tw,20,9);g.fill();
+g.strokeStyle='#ffd95c';g.lineWidth=1;
+rrect(g,cx-tw/2,baseY-h-20,tw,20,9);g.stroke();
+g.fillStyle='#ffd95c';g.fillText(nm,cx,baseY-h-6);}
+};
+console.log('SHOP-IMAGE ✓');
+});
+})();
+</script>
 </body>
 </html>
