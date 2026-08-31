@@ -3566,5 +3566,53 @@ im.src='farm.png';
 console.log('FARM-TOP v3 ✓');
 })();
 </script>
+<script>
+/* ═══ FULLSCREEN + APP-PRO: ملء شاشة + وضع تطبيق ═══ */
+(function(){'use strict';
+if(window.FSPRO)return;window.FSPRO=true;
+/* 1) وسوم وضع التطبيق */
+function meta(n,c){var m=document.createElement('meta');m.name=n;m.content=c;document.head.appendChild(m);}
+meta('mobile-web-app-capable','yes');
+meta('apple-mobile-web-app-capable','yes');
+meta('apple-mobile-web-app-status-bar-style','black-translucent');
+meta('apple-mobile-web-app-title','متجري في خطر');
+var vp=document.querySelector('meta[name=viewport]');
+if(vp)vp.content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
+/* 2) CSS ملء الشاشة + المناطق الآمنة */
+var st=document.createElement('style');
+st.textContent='html,body{height:100%!important;overflow:hidden!important;overscroll-behavior:none!important}'+
+'#cv{width:100vw!important;height:100vh!important;height:100dvh!important;display:block}'+
+'#top{padding-top:calc(6px + env(safe-area-inset-top))!important}'+
+'#nav{bottom:calc(7px + env(safe-area-inset-bottom))!important}'+
+'#quickBtns{top:calc(88px + env(safe-area-inset-top))}'+
+'.fsFab{position:fixed;top:calc(8px + env(safe-area-inset-top));left:8px;z-index:12;width:40px;height:40px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(10,20,44,.75);color:#ffd95c;font-size:18px;cursor:pointer}'+
+'@media (display-mode:fullscreen){.fsFab{opacity:.35}}';
+document.head.appendChild(st);
+/* 3) ملء الشاشة + إبقاء الشاشة صاحية + قفل التدوير */
+function isFS(){return !!(document.fullscreenElement||document.webkitFullscreenElement);}
+function goFS(){var el=document.documentElement;
+try{if(el.requestFullscreen)el.requestFullscreen().catch(function(){});else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();}catch(e){}
+try{if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('any').catch(function(){});}catch(e){}}
+function exitFS(){try{if(document.exitFullscreen)document.exitFullscreen();else if(document.webkitExitFullscreen)document.webkitExitFullscreen();}catch(e){}}
+var wl=null;
+function keepAwake(){try{if(navigator.wakeLock)navigator.wakeLock.request('screen').then(function(w){wl=w;}).catch(function(){});}catch(e){}}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)keepAwake();});
+/* زر ملء الشاشة */
+var fb=document.createElement('button');fb.className='fsFab';fb.id='fsBtn';fb.textContent='⛶';
+fb.onclick=function(){if(isFS())exitFS();else{goFS();keepAwake();}};
+document.body.appendChild(fb);
+/* ملء تلقائي عند أول لمسة (بعد الدخول) */
+var once=function(){setTimeout(function(){goFS();keepAwake();},400);document.removeEventListener('pointerdown',once);};
+document.addEventListener('pointerdown',once);
+/* منع التكبير وقائمة الضغط الطويل */
+document.addEventListener('gesturestart',function(e){e.preventDefault();});
+document.addEventListener('dblclick',function(e){e.preventDefault();});
+document.addEventListener('contextmenu',function(e){if(e.target&&e.target.id==='cv')e.preventDefault();});
+/* 4) ربط PWA (manifest + service worker) */
+var lk=document.createElement('link');lk.rel='manifest';lk.href='manifest.webmanifest';document.head.appendChild(lk);
+if('serviceWorker'in navigator){try{navigator.serviceWorker.register('sw.js').catch(function(){});}catch(e){}}
+console.log('FULLSCREEN+APP-PRO ✓');
+})();
+</script>
 </body>
 </html>
