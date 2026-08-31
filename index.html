@@ -3418,55 +3418,62 @@ else if(n.type==='metal')g.drawImage(RES_STAGE.oreD,nx-32+sh,ny-44,64,60);}}};
 })();
 </script>
 <script>
-/* ═══ ZSKIN v4: قصّ صحيح + حجم مطابق لشريط الصحة ═══ */
+/* ═══ ZSKIN v5: تنظيف آمن + قصّ كامل (بدون نصفين) ═══ */
 (function(){'use strict';
-if(window.ZSKIN4)return;window.ZSKIN4=true;
+if(window.ZSKIN5)return;window.ZSKIN5=true;
 var SD={
 basic:{url:'z_basic.png',
-front:[[.015,.02,.13,.30],[.14,.02,.255,.30],[.265,.02,.375,.30],[.38,.02,.49,.30]],
-walk:[[.03,.31,.13,.65],[.165,.31,.265,.65],[.33,.31,.43,.65],[.50,.31,.605,.65],[.66,.31,.76,.65]],
-attack:[[.02,.66,.155,.97],[.145,.66,.265,.97],[.265,.66,.385,.97],[.365,.66,.46,.97]],
-death:[[.50,.66,.625,.97],[.64,.66,.795,.97],[.79,.66,.97,.97]]},
+front:[[.015,.01,.13,.31],[.14,.01,.255,.31],[.265,.02,.375,.31],[.38,.02,.49,.31]],
+walk:[[.03,.30,.13,.66],[.165,.30,.265,.66],[.33,.30,.43,.66],[.50,.30,.605,.66],[.66,.30,.76,.66]],
+attack:[[.02,.65,.155,.98],[.145,.65,.265,.98],[.265,.65,.385,.98],[.365,.65,.46,.98]],
+death:[[.50,.65,.625,.98],[.64,.65,.795,.98],[.79,.65,.97,.98]]},
 worker:{url:'z_worker.png',
-walk:[[.03,.03,.115,.30],[.12,.03,.21,.30],[.215,.03,.30,.30],[.31,.03,.40,.30],[.405,.03,.49,.30],[.51,.03,.60,.30],[.605,.03,.70,.30],[.705,.03,.80,.30]],
-front:[[.03,.33,.115,.62],[.12,.33,.21,.62],[.215,.33,.30,.62],[.31,.33,.40,.62],[.405,.33,.49,.62]],
-attack:[[.02,.65,.14,.97],[.14,.65,.27,.97],[.26,.65,.40,.97],[.37,.65,.475,.97]],
-death:[[.50,.65,.635,.97],[.64,.68,.80,.97],[.79,.68,.965,.97]]},
+walk:[[.03,.02,.115,.31],[.12,.02,.21,.31],[.215,.02,.30,.31],[.31,.02,.40,.31],[.405,.02,.49,.31],[.51,.02,.60,.31],[.605,.02,.70,.31],[.705,.02,.80,.31]],
+front:[[.03,.32,.115,.63],[.12,.32,.21,.63],[.215,.32,.30,.63],[.31,.32,.40,.63],[.405,.32,.49,.63]],
+attack:[[.02,.63,.14,.98],[.14,.63,.27,.98],[.26,.63,.40,.98],[.37,.63,.475,.98]],
+death:[[.50,.63,.635,.98],[.64,.66,.80,.98],[.79,.66,.965,.98]]},
 knight:{url:'z_knight.png',
-walk:[[.03,.03,.125,.30],[.13,.03,.22,.30],[.225,.03,.32,.30],[.32,.03,.41,.30],[.415,.03,.51,.30],[.55,.03,.64,.30],[.645,.03,.74,.30],[.745,.03,.84,.30]],
-front:[[.03,.33,.12,.62],[.125,.33,.21,.62],[.215,.33,.30,.62],[.305,.33,.39,.62],[.395,.33,.48,.62]],
-attack:[[.03,.64,.15,.97],[.14,.64,.27,.97],[.26,.64,.40,.97],[.375,.64,.48,.97]],
-death:[[.51,.64,.635,.97],[.64,.68,.80,.97],[.79,.68,.965,.97]]},
+walk:[[.03,.02,.125,.31],[.13,.02,.22,.31],[.225,.02,.32,.31],[.32,.02,.41,.31],[.415,.02,.51,.31],[.55,.02,.64,.31],[.645,.02,.74,.31],[.745,.02,.84,.31]],
+front:[[.03,.32,.12,.63],[.125,.32,.21,.63],[.215,.32,.30,.63],[.305,.32,.39,.63],[.395,.32,.48,.63]],
+attack:[[.03,.63,.15,.98],[.14,.63,.27,.98],[.26,.63,.40,.98],[.375,.63,.48,.98]],
+death:[[.51,.63,.635,.98],[.64,.66,.80,.98],[.79,.66,.965,.98]]},
 runner:{url:'z_runner.png',
-walk:[[.04,.03,.14,.30],[.145,.03,.24,.30],[.245,.03,.35,.30],[.35,.03,.45,.30],[.45,.03,.55,.30],[.565,.03,.67,.30],[.675,.03,.78,.30],[.785,.03,.89,.30]],
-front:[[.04,.33,.14,.62],[.145,.33,.24,.62],[.255,.33,.35,.62],[.365,.33,.46,.62]],
-attack:[[.03,.64,.14,.97],[.14,.64,.25,.97],[.245,.64,.38,.97],[.365,.64,.47,.97]],
-death:[[.50,.64,.625,.97],[.64,.68,.80,.97],[.79,.68,.965,.97]]},
+walk:[[.04,.02,.14,.31],[.145,.02,.24,.31],[.245,.02,.35,.31],[.35,.02,.45,.31],[.45,.02,.55,.31],[.565,.02,.67,.31],[.675,.02,.78,.31],[.785,.02,.89,.31]],
+front:[[.04,.32,.14,.63],[.145,.32,.24,.63],[.255,.32,.35,.63],[.365,.32,.46,.63]],
+attack:[[.03,.63,.14,.98],[.14,.63,.25,.98],[.245,.63,.38,.98],[.365,.63,.47,.98]],
+death:[[.50,.63,.625,.98],[.64,.66,.80,.98],[.79,.66,.965,.98]]},
 brute:{url:'z_brute.png',
-walk:[[.04,.02,.14,.30],[.14,.02,.24,.30],[.245,.02,.35,.30],[.35,.02,.45,.30],[.45,.02,.55,.30]],
-front:[[.55,.02,.64,.30],[.645,.02,.74,.30],[.745,.02,.84,.30],[.845,.02,.94,.30],[.93,.02,.995,.30]],
-attack:[[.04,.64,.15,.98],[.15,.64,.26,.98],[.26,.64,.40,.98],[.375,.64,.48,.98]],
-death:[[.52,.64,.635,.98],[.64,.68,.80,.98],[.79,.68,.965,.98]]}};
+walk:[[.04,.01,.14,.31],[.14,.01,.24,.31],[.245,.01,.35,.31],[.35,.01,.45,.31],[.45,.01,.55,.31]],
+front:[[.55,.01,.64,.31],[.645,.01,.74,.31],[.745,.01,.84,.31],[.845,.01,.94,.31],[.93,.01,.995,.31]],
+attack:[[.04,.63,.15,.99],[.15,.63,.26,.99],[.26,.63,.40,.99],[.375,.63,.48,.99]],
+death:[[.52,.63,.635,.99],[.64,.66,.80,.99],[.79,.66,.965,.99]]}};
 var ZMAP={n:'basic',f:'runner',a:'knight',g:'brute',fi:'worker',po:'runner',fr:'knight',el:'runner',ra:'knight',gh:'basic',mu:'brute',bo:'worker',ne:'knight',b:'brute',ul:'brute'};
 var ZS={};
-function floodClean(cv){var g=cv.getContext('2d'),w=cv.width,h=cv.height;
-var d=g.getImageData(0,0,w,h),p=d.data,seen=new Uint8Array(w*h),q=[],x,y;
-function ok(i){if(p[i+3]<10)return true;var r=p[i],gg=p[i+1],b=p[i+2];var mn=Math.min(r,gg,b),mx=Math.max(r,gg,b);return (mx-mn)<14&&mn>140;}
+/* تنظيف ذكي: إذا كانت الصورة بشفافية حقيقية لا يلمس أي بكسل ملون */
+function clean(cv){var g=cv.getContext('2d'),w=cv.width,h=cv.height;
+var d=g.getImageData(0,0,w,h),p=d.data;
+var hasA=(p[3]<128)||(p[(w-1)*4+3]<128)||(p[((h-1)*w)*4+3]<128);
+var seen=new Uint8Array(w*h),q=[],x,y;
+function ok(i){if(p[i+3]<10)return true;if(hasA)return false;
+var r=p[i],gg=p[i+1],b=p[i+2];var mn=Math.min(r,gg,b),mx=Math.max(r,gg,b);
+return (mx-mn)<10&&mn>150;}
 function push(a,b){var id=b*w+a;if(seen[id])return;if(!ok(id*4))return;seen[id]=1;q.push(id);}
-for(x=0;x<w;x++){push(x,0);push(x,h-1);}for(y=0;y<h;y++){push(0,y);push(w-1,y);}
+for(x=0;x<w;x++){push(x,0);push(x,h-1);}
+for(y=0;y<h;y++){push(0,y);push(w-1,y);}
 while(q.length){var id=q.pop();p[id*4+3]=0;var xx=id%w,yy=(id-xx)/w;
-if(xx>0)push(xx-1,yy);if(xx<w-1)push(xx+1,yy);if(yy>0)push(xx,yy-1);if(yy<h-1)push(xx,yy+1);}
+if(xx>0)push(xx-1,yy);if(xx<w-1)push(xx+1,yy);
+if(yy>0)push(xx,yy-1);if(yy<h-1)push(xx,yy+1);}
 g.putImageData(d,0,0);return cv;}
 function crop(src,r,W,H){var x=Math.floor(r[0]*W),y=Math.floor(r[1]*H),ww=Math.floor((r[2]-r[0])*W),hh=Math.floor((r[3]-r[1])*H);
 if(ww<8||hh<8)return null;var c=document.createElement('canvas');c.width=ww;c.height=hh;
-c.getContext('2d').drawImage(src,x,y,ww,hh,0,0,ww,hh);return c;}
-for(var key in SD){(function(key){var d=SD[key];var im=new Image();
+c.getContext('2d').drawImage(src,x,y,ww,hh,0,0,ww,hh);return c;}for(var key in SD){(function(key){var d=SD[key];var im=new Image();
 im.onload=function(){var w=im.naturalWidth,h=im.naturalHeight;
 var cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,0,0);
-try{floodClean(cv);}catch(e){}
+try{clean(cv);}catch(e){}
 function cl(rs){var o=[];for(var i=0;i<rs.length;i++){var c=crop(cv,rs[i],w,h);if(c)o.push(c);}return o;}
 ZS[key]={walk:cl(d.walk),front:cl(d.front),attack:cl(d.attack),death:cl(d.death)};
-if(window.toast)toast('🧟 '+key+' ✓','gold');};im.onerror=function(){if(window.toast)toast('⚠️ ارفع '+d.url,'red');};
+if(window.toast)toast('🧟 '+key+' ✓','gold');};
+im.onerror=function(){if(window.toast)toast('⚠️ ارفع '+d.url,'red');};
 im.src=d.url;})(key);}
 /* حالات الحركة */
 var _up=window.update;
@@ -3477,10 +3484,10 @@ z.__mv=mv>0.3;z.__px=z.x;z.__py=z.y;
 if(z.atkCd>0.75){z.__atk=0.3;z.__aT=(z.__aT||0)+dt;}else z.__atk=Math.max(0,(z.__atk||0)-dt);}};
 function findZ(x,y){for(var i=0;i<E.zombies.length;i++){var z=E.zombies[i];
 if(Math.abs(z.x-cam.x-x)<3&&Math.abs(z.y-cam.y-y)<3)return z;}return null;}
-/* الرسم بالحجم الصحيح: 50px = نفس مقياس شريط الصحة الأصلي */
 function drawZ(g,x,y,o,z,S){
 var anim=(z.__atk>0&&S.attack.length)?'attack':((z.__mv&&S.walk.length)?'walk':((S.front.length)?'front':'walk'));
-var frs=S[anim];var fi=Math.abs(Math.floor(anim==='attack'?z.__aT*9:z.ph*2.5))%frs.length;
+var frs=S[anim];if(!frs||!frs.length)return;
+var fi=Math.abs(Math.floor(anim==='attack'?z.__aT*9:z.ph*2.5))%frs.length;
 var fr=frs[fi];if(!fr)return;
 var hgt=50*o.sc,wdt=fr.width*(hgt/fr.height);
 g.save();g.translate(x,y);
@@ -3508,13 +3515,12 @@ for(var i=corpses.length-1;i>=0;i--){var c=corpses[i];c.t+=1/60;
 var S=ZS[c.k];if(!S||!S.death||!S.death.length){corpses.splice(i,1);continue;}
 var fr=S.death[Math.min(S.death.length-1,Math.floor(c.t*6))];
 var hgt=50*c.s,wdt=fr.width*(hgt/fr.height);
-var x=c.x-cam.x,y=c.y-cam.y;
-ctx.save();ctx.translate(x,y);ctx.scale(c.fx,1);
+var x=c.x-cam.x,y=c.y-cam.y;ctx.save();ctx.translate(x,y);ctx.scale(c.fx,1);
 if(c.t>1.2)ctx.globalAlpha=Math.max(0,1-(c.t-1.2)/.6);
 ctx.drawImage(fr,-wdt/2,3-hgt,wdt,hgt);
 ctx.restore();
 if(c.t>1.8)corpses.splice(i,1);}};
-console.log('ZSKIN v4 ✓');
+console.log('ZSKIN v5 ✓');
 })();
 </script>
 </body>
