@@ -3511,65 +3511,59 @@ console.log('ZRUN ✓');
 })();
 </script>
 <script>
-/* ═══ FARM-SKIN: صورة المزرعة الجديدة — مستقل بدون تضارب ═══ */
+/* ═══ FARM-FIX v2: المزرعة تظهر دائماً (بالصورة أو بدونها) ═══ */
 (function(){'use strict';
-if(window.FARMSKIN)return;window.FARMSKIN=true;
+if(window.FARMFIX2)return;window.FARMFIX2=true;
 if(!window.drawBG)return;
 var T=window.T||48;
-/* موضع وحجم صورة المزرعة فوق الرسم القديم */
 var FX=49.7*T,FY=15.6*T,DW=12.6*T,DH=12.6*T*1.78;
-/* مراكز الأصص داخل الصورة (نسب مئوية مضبوطة) */
 var CX=[.24,.417,.592,.772],RY=[.158,.296,.431,.564,.70,.835];
-/* مواءمة قطع المزرعة مع الأصص */
-var OLD=window.plotPos;
+var FARM_ON=false,FIMG=null;
+var OLDPP=window.plotPos;
 window.plotPos=function(i){
-if(i>=0&&i<24){var c=i%4,r=Math.floor(i/4);
+if(FARM_ON&&i>=0&&i<24){var c=i%4,r=Math.floor(i/4);
 return{x:FX+DW*CX[c],y:FY+DH*RY[r]};}
-return OLD(i);};
-var FIMG=null;
-/* حذف الخلفية البيضاء/الظل باحتراف (غمر من الحواف فقط) */
-function clean(im){var w=im.naturalWidth,h=im.naturalHeight;
-var c=document.createElement('canvas');c.width=w;c.height=h;
-var g=c.getContext('2d');g.drawImage(im,0,0);
-var d=g.getImageData(0,0,w,h),p=d.data,seen=new Uint8Array(w*h),q=[],x,y;
-function ok(i){if(p[i+3]<10)return true;var r=p[i],gg=p[i+1],b=p[i+2];var mn=Math.min(r,gg,b),mx=Math.max(r,gg,b);return (mx-mn)<20&&mn>125;}
-function push(a,b){var id=b*w+a;if(seen[id])return;if(!ok(id*4))return;seen[id]=1;q.push(id);}
-for(x=0;x<w;x++){push(x,0);push(x,h-1);}
-for(y=0;y<h;y++){push(0,y);push(w-1,y);}
-while(q.length){var id=q.pop();p[id*4+3]=0;var xx=id%w,yy=(id-xx)/w;
-if(xx>0)push(xx-1,yy);if(xx<w-1)push(xx+1,yy);if(yy>0)push(xx,yy-1);if(yy<h-1)push(xx,yy+1);}
-g.putImageData(d,0,0);return c;}
-var im=new Image();
-im.onload=function(){FIMG=clean(im);
-if(window.ST&&window.drawBG)drawBG();
-if(window.toast)toast('🌾 المزرعة الجديدة جاهزة!','gold');};
-im.onerror=function(){if(window.toast)toast('⚠️ ارفع farm.png بجانب index.html','red');};
-im.src='farm.png';
-/* لف drawBG: عشب تحت + الصورة فوق القديم */
+return OLDPP(i);};
 var _dbg=window.drawBG;
 window.drawBG=function(){
 _dbg();
 if(!window.bgC)return;
-var g=bgC.getContext('2d');
-/* 1) مسح رسم المزرعة القديمة بالعشب (وتحتها يبقى عشب العالم) */
-var ox=48.7*T,oy=15.2*T,ow=14.3*T,oh=23.4*T;
+var g=bgC.getContext('2d'),i;
+if(FARM_ON&&FIMG){
+/* امسح الرسم القديم بالعشب ثم ضع الصورة */
+var ox=48.6*T,oy=15.3*T,ow=14.6*T,oh=23.3*T;
 var gc=['#63a84e','#5da24a','#68ae52','#5b9d47','#6fb858'];
 for(var gy=0;gy<oh;gy+=T)for(var gx=0;gx<ow;gx+=T){
 g.fillStyle=gc[Math.floor(Math.random()*5)];
 g.fillRect(ox+gx,oy+gy,Math.min(T,ow-gx),Math.min(T,oh-gy));}
 g.strokeStyle='rgba(30,90,30,.4)';g.lineWidth=1.4;
-for(var s=0;s<260;s++){var sx=ox+Math.random()*ow,sy=oy+Math.random()*oh;
+for(var s=0;s<220;s++){var sx=ox+Math.random()*ow,sy=oy+Math.random()*oh;
 g.beginPath();g.moveTo(sx,sy);g.lineTo(sx+Math.random()*3-1.5,sy-Math.random()*6);g.stroke();}
-for(var f=0;f<26;f++){var fx=ox+Math.random()*ow,fy=oy+Math.random()*oh;
-g.fillStyle=Math.random()<.5?'#fff':'#ffd43b';
-g.beginPath();g.ellipse(fx,fy,2,2,0,0,7);g.fill();}
-/* 2) ظل ناعم ثم صورة المزرعة فوق */
-if(FIMG){
 g.fillStyle='rgba(0,0,0,.25)';
 g.beginPath();g.ellipse(FX+DW/2,FY+DH-4,DW*.55,14,0,0,7);g.fill();
 g.drawImage(FIMG,FX,FY,DW,DH);}
+else{
+/* بدون صورة: ارسم المزرعة الأصلية فوق أي طبقة مسحَتها */
+g.fillStyle='#7a5638';rrect(g,49*T,16*T,14*T,22*T,10);g.fill();
+g.strokeStyle='#8a6a42';g.lineWidth=3;
+g.beginPath();g.moveTo(49*T,16*T);g.lineTo(63*T,16*T);g.lineTo(63*T,38*T);g.lineTo(49*T,38*T);g.closePath();g.stroke();
+for(i=0;i<24;i++){var pp=OLDPP(i);
+g.fillStyle='#8a6242';rrect(g,pp.x-21,pp.y-15,46,34,7);g.fill();
+g.fillStyle='rgba(255,255,255,.12)';rrect(g,pp.x-21,pp.y-15,46,7,7);g.fill();}
+g.strokeStyle='#6b4426';g.lineWidth=4;
+g.beginPath();g.moveTo(50.5*T,20*T);g.lineTo(50.5*T,17*T);g.moveTo(49.5*T,18*T);g.lineTo(51.5*T,18*T);g.stroke();
+g.fillStyle='#e8c098';g.beginPath();g.ellipse(50.5*T,16.6*T,4,4,0,0,7);g.fill();
+g.fillStyle='#c0392b';g.beginPath();g.moveTo(50.5*T-5,16.3*T);g.lineTo(50.5*T,15.6*T);g.lineTo(50.5*T+5,16.3*T);g.closePath();g.fill();}
 };
-console.log('FARM-SKIN ✓');
+var im=new Image();
+im.onload=function(){FIMG=im;FARM_ON=true;
+if(window.ST&&window.drawBG)drawBG();
+if(window.toast)toast('🌾 صورة المزرعة جاهزة!','gold');};
+im.onerror=function(){FARM_ON=false;FIMG=null;
+if(window.ST&&window.drawBG)drawBG();
+if(window.toast)toast('⚠️ farm.png غير موجودة — ستظهر المزرعة الأصلية','red');};
+im.src='farm.png';
+console.log('FARM-FIX v2 ✓');
 })();
 </script>
 </body>
