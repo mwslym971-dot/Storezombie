@@ -3417,5 +3417,113 @@ if(n.type==='rock')g.drawImage(RES_STAGE.rockB,nx-36+sh,ny-40,72,56);
 else if(n.type==='metal')g.drawImage(RES_STAGE.oreD,nx-32+sh,ny-44,64,60);}}};
 })();
 </script>
+<script>
+/* ═══ ZSKIN: استبدال الزومبي بسبرايتات حقيقية (مشي+هجوم+موت) ═══ */
+(function(){'use strict';
+if(window.ZSKIN)return;window.ZSKIN=true;
+var ZS={},loaded=0;
+/* 1) حذف الشطرنج/الأبيض المتصل بالحواف (يشمل كل الفراغات حول الإطارات) */
+function floodClean(g,w,h){var d=g.getImageData(0,0,w,h),p=d.data,seen=new Uint8Array(w*h),q=[],x,y;
+function ok(i){if(p[i+3]<10)return true;var r=p[i],gg=p[i+1],b=p[i+2];var mn=Math.min(r,gg,b),mx=Math.max(r,gg,b);return (mx-mn)<12&&mn>150;}
+function push(a,b){var id=b*w+a;if(seen[id])return;if(!ok(id*4))return;seen[id]=1;q.push(id);}
+for(x=0;x<w;x++){push(x,0);push(x,h-1);}for(y=0;y<h;y++){push(0,y);push(w-1,y);}
+while(q.length){var id=q.pop();p[id*4+3]=0;var xx=id%w,yy=(id-xx)/w;
+if(xx>0)push(xx-1,yy);if(xx<w-1)push(xx+1,yy);if(yy>0)push(xx,yy-1);if(yy<h-1)push(xx,yy+1);}
+g.putImageData(d,0,0);}
+/* 2) اكتشاف الإطارات تلقائياً (بدون قص يدوي) */
+function components(g,w,h){var d=g.getImageData(0,0,w,h),p=d.data,seen=new Uint8Array(w*h),out=[];
+for(var y=0;y<h;y++)for(var x=0;x<w;x++){var id=y*w+x;if(seen[id]||p[id*4+3]<25)continue;seen[id]=1;
+var st=[[x,y]],minx=x,maxx=x,miny=y,maxy=y;
+while(st.length){var c=st.pop(),cx=c[0],cy=c[1];
+if(cx<minx)minx=cx;if(cx>maxx)maxx=cx;if(cy<miny)miny=cy;if(cy>maxy)maxy=cy;
+if(cx+1<w){var i1=cy*w+cx+1;if(!seen[i1]&&p[i1*4+3]>=25){seen[i1]=1;st.push([cx+1,cy]);}}
+if(cx>0){var i2=cy*w+cx-1;if(!seen[i2]&&p[i2*4+3]>=25){seen[i2]=1;st.push([cx-1,cy]);}}
+if(cy+1<h){var i3=(cy+1)*w+cx;if(!seen[i3]&&p[i3*4+3]>=25){seen[i3]=1;st.push([cx,cy+1]);}}
+if(cy>0){var i4=(cy-1)*w+cx;if(!seen[i4]&&p[i4*4+3]>=25){seen[i4]=1;st.push([cx,cy-1]);}}}
+if(maxx-minx>50&&maxy-miny>60)out.push({x:minx,y:miny,w:maxx-minx+1,h:maxy-miny+1});}
+return out;}
+function mergeBoxes(bs){var ch=true;while(ch){ch=false;
+outer:for(var i=0;i<bs.length;i++)for(var j=i+1;j<bs.length;j++){var a=bs[i],b=bs[j];
+if(a.x-35<b.x+b.w&&b.x-35<a.x+a.w&&a.y-35<b.y+b.h&&b.y-35<a.y+a.h){
+var nx=Math.min(a.x,b.x),ny=Math.min(a.y,b.y);
+a.w=Math.max(a.x+a.w,b.x+b.w)-nx;a.h=Math.max(a.y+a.h,b.y+b.h)-ny;a.x=nx;a.y=ny;
+bs.splice(j,1);ch=true;break outer;}}}
+return bs;}
+function rowsOf(bs){if(!bs.length)return[];
+bs.sort(function(a,b){return (a.y+a.h/2)-(b.y+b.h/2);});
+var rows=[],cur=[bs[0]],cy=bs[0].y+bs[0].h/2;
+for(var i=1;i<bs.length;i++){var c=bs[i].y+bs[i].h/2;
+if(c-cy<bs[i].h*.7)cur.push(bs[i]);else{rows.push(cur);cur=[bs[i]];cy=c;}}
+rows.push(cur);
+for(var r=0;r<rows.length;r++)rows[r].sort(function(a,b){return a.x-b.x;});
+return rows;}
+function cut(g,b){var c=document.createElement('canvas');c.width=b.w;c.height=b.h;
+c.getContext('2d').drawImage(g.canvas,b.x,b.y,b.w,b.h,0,0,b.w,b.h);return c;}
+function frames(g,row){return row.map(function(b){return cut(g,b);});}
+function process(key,url){var im=new Image();
+im.onload=function(){var w=im.naturalWidth,h=im.naturalHeight;
+var c=document.createElement('canvas');c.width=w;c.height=h;var g=c.getContext('2d');g.drawImage(im,0,0);
+try{floodClean(g,w,h);}catch(e){}
+var rows=rowsOf(mergeBoxes(components(g,w,h)));
+var R={walk:[],attack:[],death:[],front:[]},L;
+if(key==='basic'){R.front=frames(g,rows[0]||[]);R.walk=frames(g,rows[1]||[]);L=rows[2]||[];}else if(key==='brute'){R.walk=frames(g,(rows[0]||[]).slice(0,5));R.front=frames(g,(rows[0]||[]).slice(5));L=rows[2]||[];}
+else{R.walk=frames(g,rows[0]||[]);R.front=frames(g,(rows[1]||[]).slice(0,5));L=rows[2]||[];}
+R.attack=frames(g,L.slice(0,Math.max(1,L.length-3)));
+R.death=frames(g,L.slice(-3));
+ZS[key]=R;loaded++;
+if(window.toast)toast('🧟 رسومات الزومبي ('+loaded+'/5)','gold');};
+im.onerror=function(){loaded++;console.warn('ZSKIN missing: '+url);};
+im.src=url;}
+process('basic','z_basic.png');process('worker','z_worker.png');process('knight','z_knight.png');process('runner','z_runner.png');process('brute','z_brute.png');
+/* 3) ربط أنواع اللعبة بالصور */
+var ZMAP={n:'basic',f:'runner',a:'knight',g:'brute',fi:'worker',po:'runner',fr:'knight',el:'runner',ra:'knight',gh:'basic',mu:'brute',bo:'worker',ne:'knight',b:'brute',ul:'brute'};
+/* 4) حالات الحركة (مشي/هجوم) من ذكاء اللعبة الأصلي */
+var _up=window.update;
+window.update=function(dt){_up(dt);if(!window.E)return;
+for(var i=0;i<E.zombies.length;i++){var z=E.zombies[i];
+var mv=Math.abs((z.__px===undefined?z.x:z.__px)-z.x)+Math.abs((z.__py===undefined?z.y:z.__py)-z.y);
+z.__mv=mv>0.3;z.__px=z.x;z.__py=z.y;
+if(z.atkCd>0.75){z.__atk=0.3;z.__aT=(z.__aT||0)+dt;}else z.__atk=Math.max(0,(z.__atk||0)-dt);}};
+/* 5) رسم الزومبي بالسبرايت بدل الرسمة القديمة */
+function findZ(x,y){for(var i=0;i<E.zombies.length;i++){var z=E.zombies[i];
+if(Math.abs(z.x-cam.x-x)<3&&Math.abs(z.y-cam.y-y)<3)return z;}return null;}
+function drawZ(g,x,y,o,z,S){
+var anim=(z.__atk>0&&S.attack.length)?'attack':((z.__mv&&S.walk.length)?'walk':((S.front.length)?'front':'walk'));
+var frs=S[anim];if(!frs.length)return;
+var fi=Math.abs(Math.floor(anim==='attack'?z.__aT*10:z.ph*3))%frs.length;
+var fr=frs[fi],hgt=95*o.sc,wdt=fr.width*(hgt/fr.height);
+g.save();g.translate(x,y);
+g.fillStyle='rgba(0,0,0,.3)';g.beginPath();g.ellipse(0,2,wdt*.35,6*o.sc,0,0,7);g.fill();
+g.scale(o.fx||1,1);
+if(o.flash>0){try{g.filter='brightness(2.6)';}catch(e){}}
+if(z.t==='gh')g.globalAlpha=.6;
+g.drawImage(fr,-wdt/2,4-hgt,wdt,hgt);
+g.restore();}
+var _db=window.drawBiped;
+window.drawBiped=function(g,x,y,o){
+if(o&&o.kind==='z'&&window.E&&window.E.zombies){var z=findZ(x,y);
+if(z){var S=ZS[ZMAP[z.t]||'basic'];if(S&&S.walk.length){drawZ(g,x,y,o,z,S);return;}}}
+return _db(g,x,y,o);};
+/* 6) أنيميشن الموت عند القتل */
+var corpses=[];
+var _kz=window.killZombie;
+window.killZombie=function(i){var z=E.zombies[i];
+if(z&&corpses.length<40)corpses.push({x:z.x,y:z.y,t:0,fx:Math.cos(z.fa||0)>=0?1:-1,s:z.sc,k:ZMAP[z.t]||'basic'});
+_kz(i);};
+var _ren=window.render;
+window.render=function(){_ren();
+if(!window.ST)return;
+for(var i=corpses.length-1;i>=0;i--){var c=corpses[i];c.t+=1/60;
+var S=ZS[c.k];if(!S||!S.death.length){corpses.splice(i,1);continue;}
+var fr=S.death[Math.min(S.death.length-1,Math.floor(c.t*6))];var hgt=95*c.s,wdt=fr.width*(hgt/fr.height);
+var x=c.x-cam.x,y=c.y-cam.y;
+ctx.save();ctx.translate(x,y);ctx.scale(c.fx,1);
+if(c.t>1.2)ctx.globalAlpha=Math.max(0,1-(c.t-1.2)/.6);
+ctx.drawImage(fr,-wdt/2,4-hgt,wdt,hgt);
+ctx.restore();
+if(c.t>1.8)corpses.splice(i,1);}};
+console.log('ZSKIN ✓');
+})();
+</script>
 </body>
 </html>
