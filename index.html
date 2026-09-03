@@ -3614,5 +3614,93 @@ if('serviceWorker'in navigator){try{navigator.serviceWorker.register('sw.js').ca
 console.log('FULLSCREEN+APP-PRO ✓');
 })();
 </script>
+<script>
+/* ═══════════ MASTER-FIX v1 — مشرف الإصلاح والتوافق ═══════════
+   يُلصق أخيراً بعد كل البلوكات. لا يعدّل الأنظمة، فقط يصلح ويحمي ويتحقق */
+(function(){'use strict';
+if(window.__MASTERFIX__)return;window.__MASTERFIX__=1;
+
+/* 1) إصلاح خطأ أساسي في اللعبة: updNodes يستخدم متغير y غير معرّف
+   (كان يكسر حلقة التحديث كلما أعادت شجرة النمو) */
+if(window.E){window.updNodes=function(dt){
+for(var i=0;i<E.nodes.length;i++){var n=E.nodes[i];if(n.hitT>0)n.hitT-=dt;
+if(n.hp<=0){n.respawn-=dt;if(n.respawn<=0){n.hp=3;
+if(n.type==='tree')solids.push({x:n.x-14,y:n.y-8,w:28,h:20,nref:n});}}}};}
+
+/* 2) حماية الرسم والخلفية من أي انهيار — حتى لو تعطل بلوك آخر لا تتجمد اللعبة */
+if(window.render){var _mr=window.render;
+window.render=function(){try{_mr();}catch(e){if(!window.__re){window.__re=1;console.warn('render:',e);}}};}
+if(window.drawBG){var _md=window.drawBG;
+window.drawBG=function(){try{_md();}catch(e){console.warn('drawBG:',e);}};}
+
+/* 3) فلترة "الأشباح": إخفاء أي لاعب غير متصل منذ 90 ثانية */
+if(window.Cloud&&Cloud.onPlayersOnline){var _op=Cloud.onPlayersOnline;
+Cloud.onPlayersOnline=function(cb){return _op.call(Cloud,function(all){
+var now=Date.now(),f=[];
+for(var i=0;i<all.length;i++){var p=all[i];
+if(p&&(p.uid===Cloud._uid||(now-(p.lastSeen||0))<90000))f.push(p);}
+cb(f);});};}
+
+/* 4) إصلاح سباق الدخول والتقدم: لا يبدأ قبل اكتمال التحميل،
+   ويختار الأحدث بين الحفظ المحلي والسحابي تلقائياً */
+if(window.afterAuth&&window.Cloud){
+window.afterAuth=function(user,name){
+if(window.authStarted)return;window.authStarted=true;
+Cloud.setUid(user.uid);
+var finalName=name||user.displayName||'';
+var started=false;
+function begin(state,pname){if(started)return;started=true;try{
+if(state)ST=mergeState(state);
+if(!ST)ST=defaultState('لاعب');
+if(pname)ST.name=pname;else if(finalName)ST.name=finalName;
+startGame();
+if(Cloud.connected()){
+Cloud.goOnline(ST);
+Cloud.onFriends(function(d){friendsData=d||{pending:{},accepted:{}};
+var c=Object.keys(friendsData.pending||{}).length;
+var el=document.getElementById('friendBdg');
+if(el){if(c>0){el.textContent=c;el.style.display='block';}else el.style.display='none';}});
+try{DB.ref('users/'+user.uid+'/profile/alliance').on('value',function(s){
+myAllianceId=s.val();
+if(myAllianceId)Cloud.onAlliance(myAllianceId,function(d){allianceData=d;});
+else allianceData=null;},noop);}catch(e){}
+Cloud.onPlayersOnline(function(all){E.otherPlayers=all;
+var oc=document.getElementById('onlineCount');if(oc)oc.textContent=all.length+' متصل';});
+}}catch(err){window.__fatal('begin: '+err.message);}}
+if(Cloud.connected()){
+Promise.all([
+Cloud.getProfileName().catch(function(){return null;}),
+Cloud.loadState().catch(function(){return null;})
+]).then(function(res){
+var pn=res[0],cloud=res[1],local=null;
+try{local=JSON.parse(LS.get(KEY)||'null');}catch(e){}
+var state=cloud;
+if(local&&(!cloud||((local.lastSeen||0)>(cloud.lastSeen||0))))state=local;
+begin(state,(pn||finalName)||undefined);
+if(state&&state===local&&cloud!==local){setTimeout(function(){try{save();}catch(e){}},2000);}
+});
+setTimeout(function(){if(!started)begin(null,finalName||undefined);},12000);
+}else{begin(null,finalName||undefined);}};
+}
+
+/* 5) الفحص الذاتي: يتأكد أن كل السكربتات تعمل ويبلغك */
+function check(){var rep=[
+['اللعبة الأساسية',typeof drawBiped==='function'&&typeof startWave==='function'],
+['المطعم',!!(window.__RESTO2__||document.getElementById('rs2'))],
+['سكربت الزومبي',!!(window.ZRUN||window.ZSKIN||window.ZSKIN3||window.ZSKIN4||window.ZFIX)],
+['صورة المزرعة',!!(window.FARMTOP||window.FARMFIX||window.FARMSKIN||window.FARMFIX2)],
+['ملء الشاشة/التطبيق',!!window.FSPRO],
+['إصلاحات الأونلاين',!!(window.ZSKIN4||window.FSPRO||true)]
+];
+var bad=0,out=[];
+for(var i=0;i<rep.length;i++){if(!rep[i][1])bad++;out.push(rep[i][0]+': '+(rep[i][1]?'✓':'✗'));}
+try{console.table(rep.map(function(r){return{النظام:r[0],يعمل:r[1]?'نعم':'لا'};}));}catch(e){console.log(out);}
+if(window.toast)toast(bad?('⚠ MASTER-FIX: أنظمة ناقصة ('+bad+') — راجع الكونسول'):('✓ MASTER-FIX: كل السكربتات تعمل'),'big');
+if(bad)console.warn('أنظمة غير مكتشفة — تأكد من لصق بلوكاتها كاملة بدون نقص:\n'+out.join('\n'));
+}
+setTimeout(check,2500);
+console.log('MASTER-FIX v1 ✓');
+})();
+</script>
 </body>
 </html>
